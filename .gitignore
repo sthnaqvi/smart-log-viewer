@@ -1,0 +1,5 @@
+node_modules/
+.test_config/
+test_log_*.log
+test_ui_log_*.log
+.DS_Store

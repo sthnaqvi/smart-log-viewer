@@ -1,0 +1,4 @@
+{"ts":"2026-02-18T10:00:01","lv":"INFO","msg":"Server started","fl":"server.js","ln":42}
+{"ts":"2026-02-18T10:00:02","lv":"DEBUG","msg":"Connection established","fl":"ws.js","ln":15}
+{"ts":"2026-02-18T10:00:03","lv":"WARN","msg":"High memory usage","fl":"monitor.js","ln":88}
+{"ts":"2026-02-18T10:00:04","lv":"ERROR","msg":"Something failed","fl":"file.js","ln":42}

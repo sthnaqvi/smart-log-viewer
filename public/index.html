@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smart Log Viewer</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="sidebar_header">
+        <h2>Log Files</h2>
+        <button type="button" class="btn btn_icon" id="add_path_btn" title="Add log file">
+          <span aria-hidden="true">+</span>
+        </button>
+      </div>
+      <ul class="file_list" id="file_list"></ul>
+      <div class="sidebar_footer">
+        <p class="hint">Click a file above to view logs</p>
+        <p class="hint">Paths saved to ~/.smart-log-viewer/config.json</p>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="filters">
+          <select id="level_filter" class="filter_select">
+            <option value="">All levels</option>
+            <option value="ERROR">ERROR</option>
+            <option value="WARN">WARN</option>
+            <option value="INFO">INFO</option>
+            <option value="DEBUG">DEBUG</option>
+          </select>
+          <input type="text" id="text_search" class="filter_input" placeholder="Search logs...">
+          <label class="toggle_label">
+            <input type="checkbox" id="auto_scroll" checked>
+            <span>Auto-scroll</span>
+          </label>
+          <button type="button" class="btn btn_small" id="pause_btn">Pause</button>
+          <button type="button" class="btn btn_small" id="clear_btn">Clear</button>
+          <button type="button" class="btn btn_small" id="download_btn" title="Download visible logs">Download</button>
+        </div>
+      </header>
+
+      <div class="log_container">
+        <div class="empty_state" id="empty_state">
+          <p class="empty_state_msg" id="empty_state_msg">Add a log file using the + button, then click it to view logs.</p>
+        </div>
+        <table class="log_table" id="log_table">
+          <thead>
+            <tr>
+              <th>Timestamp</th>
+              <th>Level</th>
+              <th>File:Line</th>
+              <th>Message</th>
+            </tr>
+          </thead>
+          <tbody id="log_body"></tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+
+  <div class="modal_overlay" id="modal_overlay" hidden>
+    <div class="modal">
+      <div class="modal_header">
+        <h3>Log Entry (JSON)</h3>
+        <div class="modal_actions">
+          <button type="button" class="btn btn_small" id="copy_log_btn">Copy</button>
+          <button type="button" class="btn btn_small btn_secondary" id="close_modal_btn">Close</button>
+        </div>
+      </div>
+      <pre class="modal_content" id="modal_content"></pre>
+    </div>
+  </div>
+
+  <div class="add_path_overlay" id="add_path_overlay" hidden>
+    <div class="add_path_modal">
+      <h3>Add Log File</h3>
+      <input type="text" id="new_path_input" class="path_input" placeholder="/path/to/your/logfile.log">
+      <div class="add_path_actions">
+        <button type="button" class="btn" id="confirm_add_btn">Add</button>
+        <button type="button" class="btn btn_secondary" id="cancel_add_btn">Cancel</button>
+      </div>
+      <p class="error_msg" id="add_path_error"></p>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

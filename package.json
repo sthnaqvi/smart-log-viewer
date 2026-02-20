@@ -1,0 +1,28 @@
+{
+  "name": "smart-log-viewer",
+  "version": "1.0.0",
+  "description": "Production-quality real-time structured log viewer for developers",
+  "main": "server/server.js",
+  "scripts": {
+    "start": "node server/server.js",
+    "dev": "node --watch server/server.js",
+    "test": "node test/e2e.js && node test/ui-e2e.js",
+    "test:api": "node test/e2e.js",
+    "test:ui": "node test/ui-e2e.js"
+  },
+  "keywords": [
+    "log",
+    "viewer",
+    "tail",
+    "websocket",
+    "developer-tools"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.21.0",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "playwright": "^1.49.0"
+  }
+}

@@ -1,0 +1,383 @@
+:root {
+  --bg_dark: #0d1117;
+  --bg_sidebar: #161b22;
+  --bg_row: #0d1117;
+  --bg_row_hover: #21262d;
+  --border: #30363d;
+  --text: #e6edf3;
+  --text_muted: #8b949e;
+  --accent: #58a6ff;
+  --error: #f85149;
+  --warn: #d29922;
+  --info: #58a6ff;
+  --success: #3fb950;
+  --font_mono: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font_mono);
+  font-size: 13px;
+  background: var(--bg_dark);
+  color: var(--text);
+  height: 100vh;
+  overflow: hidden;
+}
+
+.app {
+  display: flex;
+  height: 100vh;
+}
+
+.sidebar {
+  width: 280px;
+  min-width: 200px;
+  background: var(--bg_sidebar);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar_header {
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+}
+
+.sidebar_header h2 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.btn {
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  background: var(--bg_dark);
+  color: var(--text);
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+}
+
+.btn:hover {
+  background: var(--bg_row_hover);
+  border-color: var(--text_muted);
+}
+
+.btn_secondary {
+  background: transparent;
+}
+
+.btn_icon {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  font-size: 18px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn_small {
+  padding: 6px 10px;
+  font-size: 11px;
+}
+
+.file_list {
+  list-style: none;
+  margin: 0;
+  padding: 8px;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.file_item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  margin-bottom: 2px;
+}
+
+.file_item:hover {
+  background: var(--bg_row_hover);
+}
+
+.file_item.active {
+  background: var(--bg_row_hover);
+  border-left: 3px solid var(--accent);
+  padding-left: 9px;
+}
+
+.file_item .path_text {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--text_muted);
+}
+
+.file_item .remove_btn {
+  opacity: 0;
+  padding: 4px;
+  min-width: 24px;
+  height: 24px;
+  font-size: 14px;
+  line-height: 1;
+  color: var(--text_muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.file_item:hover .remove_btn {
+  opacity: 1;
+}
+
+.file_item .remove_btn:hover {
+  color: var(--error);
+  background: rgba(248, 81, 73, 0.15);
+}
+
+.sidebar_footer {
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+}
+
+.hint {
+  margin: 0;
+  font-size: 10px;
+  color: var(--text_muted);
+}
+
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.topbar {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg_sidebar);
+}
+
+.filters {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.filter_select {
+  padding: 6px 10px;
+  background: var(--bg_dark);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 12px;
+}
+
+.filter_input {
+  padding: 6px 12px;
+  width: 200px;
+  background: var(--bg_dark);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 12px;
+}
+
+.filter_input::placeholder {
+  color: var(--text_muted);
+}
+
+.toggle_label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text_muted);
+  cursor: pointer;
+}
+
+.toggle_label input {
+  cursor: pointer;
+}
+
+.log_container {
+  flex: 1;
+  overflow: auto;
+  position: relative;
+}
+
+.empty_state {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg_dark);
+  z-index: 0;
+}
+
+.empty_state.hidden {
+  display: none;
+}
+
+.empty_state_msg {
+  color: var(--text_muted);
+  font-size: 14px;
+  text-align: center;
+  max-width: 400px;
+  line-height: 1.5;
+}
+
+.log_table {
+  width: 100%;
+  border-collapse: collapse;
+  position: relative;
+  z-index: 1;
+}
+
+.log_table th {
+  text-align: left;
+  padding: 10px 14px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text_muted);
+  background: var(--bg_sidebar);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.log_table td {
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+.log_table tbody tr {
+  cursor: pointer;
+}
+
+.log_table tbody tr:hover {
+  background: var(--bg_row_hover);
+}
+
+.level_error { color: var(--error); }
+.level_warn { color: var(--warn); }
+.level_info { color: var(--info); }
+.level_debug { color: var(--text_muted); }
+
+.modal_overlay,
+.add_path_overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.modal_overlay[hidden],
+.add_path_overlay[hidden] {
+  display: none !important;
+}
+
+.modal,
+.add_path_modal {
+  background: var(--bg_sidebar);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  max-width: 90vw;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.modal {
+  width: 600px;
+}
+
+.modal_header {
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+}
+
+.modal_header h3 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.modal_actions {
+  display: flex;
+  gap: 8px;
+}
+
+.modal_content {
+  padding: 16px;
+  margin: 0;
+  overflow: auto;
+  flex: 1;
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.add_path_modal {
+  width: 420px;
+  padding: 24px;
+}
+
+.add_path_modal h3 {
+  margin: 0 0 16px 0;
+  font-size: 14px;
+}
+
+.path_input {
+  width: 100%;
+  padding: 10px 12px;
+  margin-bottom: 16px;
+  background: var(--bg_dark);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 12px;
+}
+
+.add_path_actions {
+  display: flex;
+  gap: 8px;
+}
+
+.error_msg {
+  margin: 12px 0 0 0;
+  font-size: 12px;
+  color: var(--error);
+}
