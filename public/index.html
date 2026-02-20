@@ -4,27 +4,31 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Smart Log Viewer</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <div class="app">
     <aside class="sidebar">
       <div class="sidebar_header">
-        <h2>Log Files</h2>
-        <button type="button" class="btn btn_icon" id="add_path_btn" title="Add log file">
+        <div class="logo_wrap">
+          <img src="logo.svg" alt="" class="logo_img">
+          <h2>Log Sources</h2>
+        </div>
+        <button type="button" class="btn btn_icon" id="add_path_btn" title="Add log source">
           <span aria-hidden="true">+</span>
         </button>
       </div>
       <ul class="file_list" id="file_list"></ul>
       <div class="sidebar_footer">
-        <p class="hint">Click a file above to view logs</p>
-        <p class="hint">Paths saved to ~/.smart-log-viewer/config.json</p>
+        <p class="hint">Click a source to view logs</p>
+        <p class="hint">~/.smart-log-viewer/config.json</p>
       </div>
     </aside>
 
     <main class="main">
       <header class="topbar">
-        <div class="filters">
+        <div class="filters filters_left">
           <select id="level_filter" class="filter_select">
             <option value="">All levels</option>
             <option value="ERROR">ERROR</option>
@@ -33,6 +37,11 @@
             <option value="DEBUG">DEBUG</option>
           </select>
           <input type="text" id="text_search" class="filter_input" placeholder="Search logs...">
+        </div>
+        <div class="filters_sep"></div>
+        <div class="filters filters_center" id="visible_sources"></div>
+        <div class="filters_sep"></div>
+        <div class="filters filters_right">
           <label class="toggle_label">
             <input type="checkbox" id="auto_scroll" checked>
             <span>Auto-scroll</span>
@@ -45,15 +54,18 @@
 
       <div class="log_container">
         <div class="empty_state" id="empty_state">
-          <p class="empty_state_msg" id="empty_state_msg">Add a log file using the + button, then click it to view logs.</p>
+          <div class="empty_illustration" id="empty_illustration"></div>
+          <p class="empty_state_msg" id="empty_state_msg">Add a log source using the + button.</p>
         </div>
         <table class="log_table" id="log_table">
           <thead>
             <tr>
-              <th>Timestamp</th>
-              <th>Level</th>
-              <th>File:Line</th>
-              <th>Message</th>
+              <th class="col_expand"></th>
+              <th class="col_tag">Source</th>
+              <th class="col_ts">Timestamp</th>
+              <th class="col_level">Level</th>
+              <th class="col_file">File:Line</th>
+              <th class="col_msg">Message</th>
             </tr>
           </thead>
           <tbody id="log_body"></tbody>
@@ -77,8 +89,16 @@
 
   <div class="add_path_overlay" id="add_path_overlay" hidden>
     <div class="add_path_modal">
-      <h3>Add Log File</h3>
+      <h3>Add Log Source</h3>
+      <label class="form_label">Path</label>
       <input type="text" id="new_path_input" class="path_input" placeholder="/path/to/your/logfile.log">
+      <label class="form_label">Tag Name</label>
+      <input type="text" id="new_tag_input" class="path_input" placeholder="payments-api (auto from filename)">
+      <label class="form_label">Color</label>
+      <div class="color_row">
+        <input type="color" id="new_color_input" class="color_picker" value="#a371f7">
+        <span class="color_hex" id="color_hex">#a371f7</span>
+      </div>
       <div class="add_path_actions">
         <button type="button" class="btn" id="confirm_add_btn">Add</button>
         <button type="button" class="btn btn_secondary" id="cancel_add_btn">Cancel</button>
@@ -86,6 +106,26 @@
       <p class="error_msg" id="add_path_error"></p>
     </div>
   </div>
+
+  <div class="edit_tag_overlay" id="edit_tag_overlay" hidden>
+    <div class="add_path_modal">
+      <h3>Edit Source</h3>
+      <input type="hidden" id="edit_path_input">
+      <label class="form_label">Tag Name</label>
+      <input type="text" id="edit_tag_input" class="path_input">
+      <label class="form_label">Color</label>
+      <div class="color_row">
+        <input type="color" id="edit_color_input" class="color_picker">
+        <span class="color_hex" id="edit_color_hex"></span>
+      </div>
+      <div class="add_path_actions">
+        <button type="button" class="btn" id="confirm_edit_btn">Save</button>
+        <button type="button" class="btn btn_secondary" id="cancel_edit_btn">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="tooltip" id="cell_tooltip" role="tooltip"></div>
 
   <script src="app.js"></script>
 </body>

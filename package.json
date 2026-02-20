@@ -6,9 +6,10 @@
   "scripts": {
     "start": "node server/server.js",
     "dev": "node --watch server/server.js",
-    "test": "node test/e2e.js && node test/ui-e2e.js",
+    "test": "node test/e2e.js && node test/ui.spec.js && node test/feature-tests.spec.js",
     "test:api": "node test/e2e.js",
-    "test:ui": "node test/ui-e2e.js"
+    "test:ui": "node test/ui.spec.js",
+    "test:features": "node test/feature-tests.spec.js"
   },
   "keywords": [
     "log",

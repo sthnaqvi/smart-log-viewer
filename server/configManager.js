@@ -5,7 +5,31 @@ const os = require('os');
 const CONFIG_DIR =
   process.env.CONFIG_DIR || path.join(os.homedir(), '.smart-log-viewer');
 const CONFIG_FILE = path.join(CONFIG_DIR, 'config.json');
-const DEFAULT_CONFIG = { file_paths: [] };
+
+const DEFAULT_COLORS = [
+  '#a371f7',
+  '#58a6ff',
+  '#3fb950',
+  '#d29922',
+  '#f85149',
+  '#79c0ff',
+  '#ff7b72',
+  '#a5d6ff',
+];
+
+function tagFromPath(file_path) {
+  const base = path.basename(file_path);
+  const name = base.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ');
+  return name || base || 'log';
+}
+
+function pickColor(existing_colors) {
+  const used = new Set(existing_colors.map((c) => c.toLowerCase()));
+  for (const c of DEFAULT_COLORS) {
+    if (!used.has(c.toLowerCase())) return c;
+  }
+  return DEFAULT_COLORS[existing_colors.length % DEFAULT_COLORS.length];
+}
 
 async function ensureConfigDir() {
   try {
@@ -20,13 +44,29 @@ async function readConfig() {
     await ensureConfigDir();
     const raw = await fs.readFile(CONFIG_FILE, 'utf-8');
     const config = JSON.parse(raw);
-    return Array.isArray(config.file_paths) ? config : DEFAULT_CONFIG;
+    return migrateConfig(config);
   } catch (err) {
     if (err.code === 'ENOENT') {
-      return DEFAULT_CONFIG;
+      return { sources: [] };
     }
     throw new Error(`Failed to read config: ${err.message}`);
   }
+}
+
+function migrateConfig(config) {
+  if (Array.isArray(config.sources) && config.sources.length > 0) {
+    return config;
+  }
+  const legacy_paths = config.file_paths || [];
+  const sources = legacy_paths.map((fp, i) => {
+    const normalized = path.normalize(String(fp).trim());
+    return {
+      path: normalized,
+      tagName: tagFromPath(normalized),
+      color: DEFAULT_COLORS[i % DEFAULT_COLORS.length],
+    };
+  });
+  return { sources };
 }
 
 async function writeConfig(config) {
@@ -39,37 +79,66 @@ async function writeConfig(config) {
   }
 }
 
+async function getSources() {
+  const config = await readConfig();
+  return config.sources || [];
+}
+
 async function getFilePaths() {
-  const config = await readConfig();
-  return config.file_paths || [];
+  const sources = await getSources();
+  return sources.map((s) => s.path);
 }
 
-async function addFilePath(file_path) {
+async function addSource(file_path, tag_name, color) {
   const config = await readConfig();
-  const paths = config.file_paths || [];
+  const sources = config.sources || [];
   const normalized = path.normalize(file_path.trim());
-  if (!normalized || paths.includes(normalized)) {
-    return paths;
-  }
-  config.file_paths = [...paths, normalized];
+  const existing = sources.find((s) => s.path === normalized);
+  if (existing) return sources;
+
+  const tag = (tag_name || tagFromPath(normalized)).trim() || tagFromPath(normalized);
+  const existing_colors = sources.map((s) => s.color);
+  const final_color = color || pickColor(existing_colors);
+
+  config.sources = [...sources, { path: normalized, tagName: tag, color: final_color }];
   await writeConfig(config);
-  return config.file_paths;
+  return config.sources;
 }
 
-async function removeFilePath(file_path) {
+async function updateSource(file_path, updates) {
   const config = await readConfig();
-  const paths = config.file_paths || [];
+  const sources = config.sources || [];
   const normalized = path.normalize(file_path.trim());
-  config.file_paths = paths.filter((p) => p !== normalized);
+  const idx = sources.findIndex((s) => s.path === normalized);
+  if (idx < 0) return sources;
+
+  const updated = { ...sources[idx] };
+  if (updates.tagName != null) updated.tagName = String(updates.tagName).trim() || updated.tagName;
+  if (updates.color != null) updated.color = updates.color;
+  sources[idx] = updated;
+  config.sources = sources;
   await writeConfig(config);
-  return config.file_paths;
+  return config.sources;
+}
+
+async function removeSource(file_path) {
+  const config = await readConfig();
+  const sources = config.sources || [];
+  const normalized = path.normalize(file_path.trim());
+  config.sources = sources.filter((s) => s.path !== normalized);
+  await writeConfig(config);
+  return config.sources;
 }
 
 module.exports = {
   readConfig,
   writeConfig,
+  getSources,
   getFilePaths,
-  addFilePath,
-  removeFilePath,
+  addSource,
+  updateSource,
+  removeSource,
+  tagFromPath,
+  pickColor,
   CONFIG_FILE,
 };

@@ -37,14 +37,12 @@ tail_manager.setBroadcast(({ file_path, entry }) => {
 
 wss.on('connection', (ws, req) => {
   clients.add(ws);
-  let selected_file = null;
 
   ws.on('message', (raw) => {
     try {
       const msg = JSON.parse(raw.toString());
       if (msg.type === 'select' && msg.file_path) {
         const normalized = path.normalize(msg.file_path);
-        selected_file = normalized;
         const buffer = tail_manager.getBuffer(normalized);
         ws.send(
           JSON.stringify({
@@ -66,8 +64,8 @@ wss.on('connection', (ws, req) => {
 
 app.get('/api/config', async (req, res) => {
   try {
-    const file_paths = await configManager.getFilePaths();
-    res.json({ file_paths });
+    const sources = await configManager.getSources();
+    res.json({ sources });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -75,7 +73,7 @@ app.get('/api/config', async (req, res) => {
 
 app.post('/api/config/add', async (req, res) => {
   try {
-    const { path: file_path } = req.body;
+    const { path: file_path, tagName, color } = req.body;
     if (!file_path || typeof file_path !== 'string') {
       return res.status(400).json({ error: 'path is required' });
     }
@@ -87,9 +85,22 @@ app.post('/api/config/add', async (req, res) => {
         error: `File not readable or does not exist: ${access_err.message}`,
       });
     }
-    const file_paths = await configManager.addFilePath(normalized);
+    const sources = await configManager.addSource(normalized, tagName, color);
     tail_manager.startTail(normalized);
-    res.json({ file_paths });
+    res.json({ sources });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/config/update', async (req, res) => {
+  try {
+    const { path: file_path, tagName, color } = req.body;
+    if (!file_path || typeof file_path !== 'string') {
+      return res.status(400).json({ error: 'path is required' });
+    }
+    const sources = await configManager.updateSource(file_path, { tagName, color });
+    res.json({ sources });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -103,8 +114,8 @@ app.post('/api/config/remove', async (req, res) => {
     }
     const normalized = path.normalize(file_path.trim());
     tail_manager.stopTail(normalized);
-    const file_paths = await configManager.removeFilePath(normalized);
-    res.json({ file_paths });
+    const sources = await configManager.removeSource(normalized);
+    res.json({ sources });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -112,11 +123,11 @@ app.post('/api/config/remove', async (req, res) => {
 
 async function startServer() {
   try {
-    const file_paths = await configManager.getFilePaths();
-    for (const fp of file_paths) {
+    const sources = await configManager.getSources();
+    for (const s of sources) {
       try {
-        fs.accessSync(fp, fs.constants.R_OK);
-        tail_manager.startTail(fp);
+        fs.accessSync(s.path, fs.constants.R_OK);
+        tail_manager.startTail(s.path);
       } catch (_) {
         // Skip invalid paths, don't crash
       }

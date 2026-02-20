@@ -176,7 +176,7 @@ async function runTests() {
 
     const { status, body } = await httpGet(`${BASE_URL}/api/config`);
     ok(status === 200, 'GET /api/config returns 200');
-    ok(Array.isArray(body.file_paths), 'Config has file_paths array');
+    ok(Array.isArray(body.sources), 'Config has sources array');
 
     const log_path = createTempLog();
     appendToLog('{"ts":"2026-02-18","lv":"INFO","msg":"test line 1","fl":"test.js","ln":1}');
@@ -184,7 +184,8 @@ async function runTests() {
     const add_res = await httpPost(`${BASE_URL}/api/config/add`, { path: log_path });
     ok(add_res.status === 200, 'POST /api/config/add returns 200');
     ok(!add_res.body.error, 'Add success has no error field (modal would close)');
-    ok(add_res.body.file_paths && add_res.body.file_paths.includes(log_path), 'Path added to config');
+    const added = add_res.body.sources?.find((s) => s.path === log_path);
+    ok(!!added && added.tagName, 'Path added with tag');
 
     const add_dup = await httpPost(`${BASE_URL}/api/config/add`, { path: log_path });
     ok(add_dup.status === 200, 'Add duplicate path returns 200 (modal would close)');
@@ -218,7 +219,7 @@ async function runTests() {
 
     const remove_res = await httpPost(`${BASE_URL}/api/config/remove`, { path: log_path });
     ok(remove_res.status === 200, 'POST /api/config/remove returns 200');
-    ok(!remove_res.body.file_paths.includes(log_path), 'Path removed from config');
+    ok(!remove_res.body.sources?.some((s) => s.path === log_path), 'Path removed from config');
 
     const invalid_add = await httpPost(`${BASE_URL}/api/config/add`, {
       path: '/nonexistent/path/12345.log',
