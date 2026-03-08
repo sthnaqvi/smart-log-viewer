@@ -54,6 +54,8 @@ Senior engineers appreciate this reasoning: clarity over minimalism.
 npm install -g smart-log-viewer
 ```
 
+To update: run the same command again. After updating, `smart-log-viewer --version` should show the new version.
+
 ### From source
 
 ```bash
@@ -61,16 +63,6 @@ git clone <repo>
 cd smart-log-viewer
 npm install
 ```
-
-### Via Homebrew
-
-Requires Node.js (installed automatically by Homebrew).
-
-```bash
-brew install ./brew/smart-log-viewer.rb
-```
-
-Or: `brew install smart-log-viewer` (when available from a tap)
 
 ## Running the CLI
 
@@ -84,17 +76,30 @@ Starts the server on port 3847, loads config from `~/.smart-log-viewer/config.js
 
 | Option | Description |
 |--------|-------------|
-| `--port <n>` | Port to listen on (default: 3847) |
-| `--config <path>` | Config directory (default: ~/.smart-log-viewer) |
+| `-p, --port <n>` | Port to listen on (default: 3847) |
+| `-c, --config <path>` | Config directory (default: ~/.smart-log-viewer) |
 | `--no-open` | Do not open browser automatically |
-| `--help`, `-h` | Show help |
+| `-h, --help` | Show help |
+| `-v, --version` | Show version |
+
+## CLI Commands
+
+| Command | Description |
+|---------|-------------|
+| *(default)* | Start the server and open browser |
+| `config` | Show config directory path |
+| `info` | Show version, config path, and Node version |
 
 Examples:
 
 ```bash
 smart-log-viewer --port 9000
 smart-log-viewer --config ~/my-config --no-open
+smart-log-viewer config
+smart-log-viewer info
 ```
+
+Invalid commands and unknown options are rejected with clear error messages; the server will not start.
 
 ## Run (from source)
 
@@ -154,7 +159,20 @@ Format:
 
 ## Run with PM2
 
-Works with `pm2 start smart-log-viewer` when installed globally. Uses `--no-open` behavior (no browser) when not a TTY.
+### One-line install (recommended)
+
+Install PM2 globally, then install Smart Log Viewer as a PM2 module:
+
+```bash
+npm install -g pm2
+pm2 install smart-log-viewer
+```
+
+That's it. The UI runs at http://localhost:3847. View logs with `pm2 logs smart-log-viewer`.
+
+### Other PM2 options
+
+Start when already installed globally:
 
 ```bash
 pm2 start smart-log-viewer --name smart-log-viewer
@@ -164,6 +182,12 @@ With custom port:
 
 ```bash
 pm2 start smart-log-viewer -- --port 9000
+```
+
+Using ecosystem file (from project root):
+
+```bash
+pm2 start ecosystem.config.js
 ```
 
 ## Architecture

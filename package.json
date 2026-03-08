@@ -9,7 +9,8 @@
   "files": [
     "bin",
     "server",
-    "public"
+    "public",
+    "ecosystem.config.js"
   ],
   "engines": {
     "node": ">=18.0.0"
@@ -31,13 +32,28 @@
     "viewer",
     "tail",
     "websocket",
-    "developer-tools"
+    "developer-tools",
+    "pm2-module"
+  ],
+  "config": {
+    "port": 3847
+  },
+  "apps": [
+    {
+      "script": "bin/smart-log-viewer.js",
+      "name": "smart-log-viewer",
+      "args": ["--no-open"],
+      "merge_logs": true,
+      "env": {
+        "PORT": "3847"
+      }
+    }
   ],
   "license": "MIT",
   "dependencies": {
     "chalk": "^4.1.2",
+    "commander": "^14.0.3",
     "express": "^4.21.0",
-    "minimist": "^1.2.8",
     "open": "^10.0.0",
     "ws": "^8.18.0"
   },

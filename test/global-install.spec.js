@@ -105,6 +105,11 @@ async function runTests() {
     ok(help_res.code === 0, '--help exits 0');
     ok(help_res.stdout.includes('Smart Log Viewer'), 'Help shows title');
 
+    const version_res = await runCapture(bin_path, ['--version']);
+    ok(version_res.code === 0, 'Installed binary --version exits 0');
+    ok(/^\d+\.\d+\.\d+/.test(version_res.stdout.trim()), 'Installed binary --version shows semver');
+    ok(!version_res.stdout.includes('Server started'), 'Installed binary --version does NOT start server');
+
     const proc = spawn(bin_path, ['--port', String(TEST_PORT), '--no-open'], {
       env: { ...process.env, PATH: path.join(INSTALL_PREFIX, 'bin') + path.delimiter + process.env.PATH },
       stdio: ['ignore', 'pipe', 'pipe'],

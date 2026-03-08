@@ -43,6 +43,26 @@ function runCliBackground(args = [], env = {}) {
   return proc;
 }
 
+function runCliAsBinary(args = [], env = {}) {
+  return new Promise((resolve) => {
+    try {
+      fs.chmodSync(CLI_PATH, 0o755);
+    } catch (_) {}
+    const proc = spawn(CLI_PATH, args, {
+      cwd: path.join(__dirname, '..'),
+      env: { ...process.env, ...env },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    let stdout = '';
+    let stderr = '';
+    proc.stdout?.on('data', (d) => { stdout += d.toString(); });
+    proc.stderr?.on('data', (d) => { stderr += d.toString(); });
+    proc.on('close', (code, signal) => {
+      resolve({ code, signal, stdout, stderr });
+    });
+  });
+}
+
 function httpGet(url) {
   return new Promise((resolve, reject) => {
     const req = http.get(url, (res) => {
@@ -87,6 +107,69 @@ async function runTests() {
   const help_h = await runCli(['-h']);
   ok(help_h.code === 0, '-h exits 0');
   ok(help_h.stdout.includes('Smart Log Viewer'), '-h shows help');
+
+  const version_res = await runCli(['--version']);
+  ok(version_res.code === 0, '--version exits 0');
+  ok(/^\d+\.\d+\.\d+/.test(version_res.stdout.trim()), '--version shows semver');
+
+  const version_v = await runCli(['-v']);
+  ok(version_v.code === 0, '-v exits 0');
+  ok(/^\d+\.\d+\.\d+/.test(version_v.stdout.trim()), '-v shows version');
+
+  console.log('\n--- CLI as binary (simulates global smart-log-viewer) ---');
+  const bin_version = await runCliAsBinary(['--version']);
+  ok(bin_version.code === 0, 'Binary --version exits 0');
+  ok(/^\d+\.\d+\.\d+/.test(bin_version.stdout.trim()), 'Binary --version shows semver');
+  ok(!bin_version.stdout.includes('Server started'), 'Binary --version does NOT start server');
+
+  const bin_help = await runCliAsBinary(['--help']);
+  ok(bin_help.code === 0, 'Binary --help exits 0');
+  ok(bin_help.stdout.includes('Smart Log Viewer'), 'Binary --help shows title');
+
+  const bin_v = await runCliAsBinary(['-v']);
+  ok(bin_v.code === 0, 'Binary -v exits 0');
+  ok(/^\d+\.\d+\.\d+/.test(bin_v.stdout.trim()), 'Binary -v shows version');
+
+  // --- Invalid commands and options (must NOT start server) ---
+  console.log('\n--- Invalid commands/options ---');
+  const invalid_opt = await runCli(['--invalid']);
+  ok(invalid_opt.code !== 0, 'Unknown option --invalid exits non-zero');
+  ok((invalid_opt.stderr + invalid_opt.stdout).includes('unknown option') ||
+    (invalid_opt.stderr + invalid_opt.stdout).includes('--invalid'),
+    'Unknown option shows error message');
+  ok(!invalid_opt.stdout.includes('Server started'), 'Unknown option does NOT start server');
+
+  const invalid_arg = await runCli(['foo']);
+  ok(invalid_arg.code !== 0, 'Unknown positional arg "foo" exits non-zero');
+  ok(!invalid_arg.stdout.includes('Server started'), 'Unknown arg does NOT start server');
+
+  const invalid_cmd = await runCli(['invalidcommand']);
+  ok(invalid_cmd.code !== 0, 'Unknown command exits non-zero');
+  ok(!invalid_cmd.stdout.includes('Server started'), 'Unknown command does NOT start server');
+
+  // --- New commands: config, info ---
+  console.log('\n--- config and info commands ---');
+  const config_res = await runCli(['config']);
+  ok(config_res.code === 0, 'config command exits 0');
+  ok(config_res.stdout.includes('.smart-log-viewer') ||
+    config_res.stdout.includes('config'), 'config shows config path');
+
+  const info_res = await runCli(['info']);
+  ok(info_res.code === 0, 'info command exits 0');
+  ok(info_res.stdout.includes('Smart Log Viewer'), 'info shows title');
+  ok(info_res.stdout.includes('Version:'), 'info shows version');
+  ok(info_res.stdout.includes('Node:'), 'info shows Node version');
+
+  // --- Edge cases: arg order, position ---
+  console.log('\n--- Edge cases ---');
+  const version_first = await runCli(['--version', '--port', '9000']);
+  ok(version_first.code === 0 && /^\d+\.\d+\.\d+/.test(version_first.stdout.trim()),
+    '--version first: shows version, ignores other args');
+
+  const help_version = await runCli(['--help', '--version']);
+  ok(help_version.code === 0 && (help_version.stdout.includes('Smart Log Viewer') ||
+    /^\d+\.\d+\.\d+/.test(help_version.stdout.trim())),
+    '--help with --version: exits 0 with help or version');
 
   // --- Invalid port ---
   console.log('\n--- Invalid port ---');
