@@ -69,14 +69,15 @@ function httpPost(url, body) {
   });
 }
 
-const TEST_CONFIG_DIR = path.join(__dirname, '..', '.test_config');
+const TEST_TMP = path.join(__dirname, '.tmp');
+const TEST_CONFIG_DIR = path.join(TEST_TMP, 'config');
+const TEST_TEMP_DIR = path.join(TEST_TMP, 'logs');
 
 function startServer() {
   return new Promise((resolve) => {
-    if (fs.existsSync(TEST_CONFIG_DIR)) {
-      fs.rmSync(TEST_CONFIG_DIR, { recursive: true });
-    }
+    if (fs.existsSync(TEST_TMP)) fs.rmSync(TEST_TMP, { recursive: true });
     fs.mkdirSync(TEST_CONFIG_DIR, { recursive: true });
+    fs.mkdirSync(TEST_TEMP_DIR, { recursive: true });
     server_process = spawn('node', ['server/server.js'], {
       cwd: path.join(__dirname, '..'),
       env: {
@@ -113,7 +114,8 @@ function stopServer() {
 }
 
 function createTempLog() {
-  temp_log_path = path.join(__dirname, '..', 'test_log_' + Date.now() + '.log');
+  if (!fs.existsSync(TEST_TEMP_DIR)) fs.mkdirSync(TEST_TEMP_DIR, { recursive: true });
+  temp_log_path = path.join(TEST_TEMP_DIR, 'test_log_' + Date.now() + '.log');
   fs.writeFileSync(temp_log_path, '');
   return temp_log_path;
 }
@@ -127,6 +129,7 @@ function cleanupTempLog() {
     fs.unlinkSync(temp_log_path);
     temp_log_path = null;
   }
+  if (fs.existsSync(TEST_TEMP_DIR)) fs.rmSync(TEST_TEMP_DIR, { recursive: true });
 }
 
 async function wsConnectAndSelect(file_path) {
@@ -193,8 +196,12 @@ async function runTests() {
     await sleep(300);
 
     const { ws, received } = await wsConnectAndSelect(log_path);
+    ws.send('not valid json');
+    ws.send('{"incomplete');
+    await sleep(50);
     const buffer_msg = received.find((m) => m.type === 'buffer');
     ok(!!buffer_msg, 'WebSocket receives buffer on select');
+    ok(true, 'WebSocket ignores malformed messages without crashing');
     ok(Array.isArray(buffer_msg.entries), 'Buffer has entries array');
     ok(buffer_msg.entries.length >= 1, 'Buffer contains initial log line');
     const has_test_msg = buffer_msg.entries.some((e) => e.msg === 'test line 1');
@@ -228,12 +235,16 @@ async function runTests() {
 
     const no_path_add = await httpPost(`${BASE_URL}/api/config/add`, {});
     ok(no_path_add.status === 400, 'Add without path returns 400');
+
+    const no_path_update = await httpPost(`${BASE_URL}/api/config/update`, {});
+    ok(no_path_update.status === 400, 'Update without path returns 400');
+
+    const no_path_remove = await httpPost(`${BASE_URL}/api/config/remove`, {});
+    ok(no_path_remove.status === 400, 'Remove without path returns 400');
   } finally {
     stopServer();
     cleanupTempLog();
-    if (fs.existsSync(TEST_CONFIG_DIR)) {
-      fs.rmSync(TEST_CONFIG_DIR, { recursive: true });
-    }
+    if (fs.existsSync(TEST_TMP)) fs.rmSync(TEST_TMP, { recursive: true });
     await sleep(100);
   }
 
@@ -245,8 +256,6 @@ runTests().catch((err) => {
   console.error('Test run failed:', err);
   stopServer();
   cleanupTempLog();
-  if (fs.existsSync(TEST_CONFIG_DIR)) {
-    fs.rmSync(TEST_CONFIG_DIR, { recursive: true });
-  }
+  if (fs.existsSync(TEST_TMP)) fs.rmSync(TEST_TMP, { recursive: true });
   process.exit(1);
 });

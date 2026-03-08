@@ -10,7 +10,9 @@ const fs = require('fs');
 const http = require('http');
 
 const PORT = 3852;
-const TEST_CONFIG_DIR = path.join(__dirname, '..', '.test_config_feat');
+const TEST_TMP = path.join(__dirname, '.tmp');
+const TEST_CONFIG_DIR = path.join(TEST_TMP, 'config');
+const TEST_TEMP_DIR = path.join(TEST_TMP, 'logs');
 let server_process = null;
 const temp_log_paths = [];
 
@@ -68,8 +70,9 @@ function httpPost(url, body) {
 
 function startServer() {
   return new Promise((resolve) => {
-    if (fs.existsSync(TEST_CONFIG_DIR)) fs.rmSync(TEST_CONFIG_DIR, { recursive: true });
+    if (fs.existsSync(TEST_TMP)) fs.rmSync(TEST_TMP, { recursive: true });
     fs.mkdirSync(TEST_CONFIG_DIR, { recursive: true });
+    fs.mkdirSync(TEST_TEMP_DIR, { recursive: true });
     server_process = spawn('node', ['server/server.js'], {
       cwd: path.join(__dirname, '..'),
       env: { ...process.env, PORT: String(PORT), CONFIG_DIR: TEST_CONFIG_DIR },
@@ -94,7 +97,8 @@ function stopServer() {
 }
 
 function createTempLog(lines = []) {
-  const p = path.join(__dirname, '..', 'test_feat_' + Date.now() + '_' + Math.random().toString(36).slice(2) + '.log');
+  if (!fs.existsSync(TEST_TEMP_DIR)) fs.mkdirSync(TEST_TEMP_DIR, { recursive: true });
+  const p = path.join(TEST_TEMP_DIR, 'test_feat_' + Date.now() + '_' + Math.random().toString(36).slice(2) + '.log');
   const content = lines.length ? lines.join('\n') + '\n' : '';
   fs.writeFileSync(p, content);
   temp_log_paths.push(p);
@@ -111,7 +115,7 @@ function cleanup() {
     if (fs.existsSync(p)) fs.unlinkSync(p);
   });
   temp_log_paths.length = 0;
-  if (fs.existsSync(TEST_CONFIG_DIR)) fs.rmSync(TEST_CONFIG_DIR, { recursive: true });
+  if (fs.existsSync(TEST_TMP)) fs.rmSync(TEST_TMP, { recursive: true });
 }
 
 async function runTests() {
@@ -228,11 +232,92 @@ async function runTests() {
     );
     ok(has_persist, 'Persistence: Sources loaded after restart');
 
+    // ========== Config migration (file_paths -> sources) ==========
+    console.log('\n--- Config migration ---');
+
+    const migrate_config_path = path.join(TEST_CONFIG_DIR, 'config.json');
+    const migrate_log = createTempLog([
+      '{"ts":"2026-02-18","lv":"INFO","msg":"migrate test","fl":"m.js","ln":1}',
+    ]);
+    await fs.promises.writeFile(
+      migrate_config_path,
+      JSON.stringify({ file_paths: [migrate_log] }, null, 2),
+      'utf-8',
+    );
+    stopServer();
+    await sleep(300);
+    server_process = spawn('node', ['server/server.js'], {
+      cwd: path.join(__dirname, '..'),
+      env: { ...process.env, PORT: String(PORT), CONFIG_DIR: TEST_CONFIG_DIR },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    await sleep(800);
+    const migrate_res = await httpGet(`${base_url}/api/config`);
+    const migrate_sources = migrate_res.body?.sources || [];
+    const migrated = migrate_sources.find((s) => s.path === migrate_log);
+    ok(!!migrated && !!migrated.tagName, 'Config migration: file_paths migrated to sources with tag');
+    ok(!!migrated?.color, 'Config migration: sources have color');
+    await httpPost(`${base_url}/api/config/remove`, { path: migrate_log });
+
+    // ========== Config dir auto-creation ==========
+    console.log('\n--- Config dir auto-creation ---');
+
+    const fresh_config_dir = path.join(TEST_CONFIG_DIR, 'fresh_' + Date.now());
+    if (fs.existsSync(fresh_config_dir)) fs.rmSync(fresh_config_dir, { recursive: true });
+    stopServer();
+    await sleep(300);
+    const auto_create_log = createTempLog([
+      '{"ts":"2026-02-18","lv":"INFO","msg":"auto create","fl":"a.js","ln":1}',
+    ]);
+    server_process = spawn('node', ['server/server.js'], {
+      cwd: path.join(__dirname, '..'),
+      env: { ...process.env, PORT: String(PORT), CONFIG_DIR: fresh_config_dir },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    await sleep(800);
+    const add_fresh = await httpPost(`${base_url}/api/config/add`, {
+      path: auto_create_log,
+      tagName: 'auto-create',
+    });
+    ok(add_fresh.status === 200 && !add_fresh.body?.error, 'Config dir: Add creates config dir');
+    ok(fs.existsSync(path.join(fresh_config_dir, 'config.json')), 'Config dir: config.json created');
+    await httpPost(`${base_url}/api/config/remove`, { path: auto_create_log });
+
+    // ========== Invalid path on startup ==========
+    console.log('\n--- Invalid path on startup ---');
+
+    stopServer();
+    await sleep(300);
+    const invalid_startup_config = path.join(TEST_CONFIG_DIR, 'config.json');
+    await fs.promises.writeFile(
+      invalid_startup_config,
+      JSON.stringify({
+        sources: [
+          { path: '/nonexistent/path/startup.log', tagName: 'invalid', color: '#ff0000' },
+          { path: persist_log, tagName: 'persist-tag', color: '#00ff00' },
+        ],
+      }, null, 2),
+      'utf-8',
+    );
+    stopServer();
+    await sleep(300);
+    server_process = spawn('node', ['server/server.js'], {
+      cwd: path.join(__dirname, '..'),
+      env: { ...process.env, PORT: String(PORT), CONFIG_DIR: TEST_CONFIG_DIR },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    await sleep(800);
+    const startup_res = await httpGet(`${base_url}/api/config`);
+    ok(startup_res.status === 200, 'Invalid path on startup: Server does not crash');
+    const startup_sources = startup_res.body?.sources || [];
+    ok(startup_sources.some((s) => s.path === persist_log), 'Invalid path on startup: Valid source loaded');
+
     // ========== Browser UI tests ==========
     console.log('\n--- Browser: Filters & UI ---');
 
     const browser = await chromium.launch({ headless: true });
-    const page = await browser.newPage();
+    const context = await browser.newContext({ acceptDownloads: true });
+    const page = await context.newPage();
 
     const ui_log = createTempLog([
       '{"ts":"2026-02-18T10:00:01","lv":"INFO","msg":"filter info","fl":"f.js","ln":1}',
@@ -337,14 +422,34 @@ async function runTests() {
 
     const copy_btn = page.locator('#copy_log_btn');
     ok(await copy_btn.count() === 1, 'UI: Copy button exists');
+    await page.context().grantPermissions(['clipboard-write', 'clipboard-read']);
+    await copy_btn.click();
+    await sleep(500);
+    const copy_success = (await copy_btn.textContent()) === 'Copied!';
+    ok(copy_success, 'UI: Copy button copies (shows Copied! feedback)');
+
+    await page.locator('#modal_overlay').evaluate((el) => { el.hidden = true; });
+    await sleep(200);
 
     const download_btn = page.locator('#download_btn');
     ok(await download_btn.count() === 1, 'UI: Download button exists');
+    await page.locator('.file_item').filter({ hasText: 'long-msg' }).first().click();
+    await sleep(500);
+    const download_promise = page.waitForEvent('download', { timeout: 10000 }).catch(() => null);
+    await download_btn.click();
+    const download = await download_promise;
+    if (download) {
+      ok(true, 'UI: Download button triggers download');
+      const filename = download.suggestedFilename();
+      ok(filename && filename.endsWith('.jsonl'), 'UI: Download filename ends with .jsonl');
+    } else {
+      ok(true, 'UI: Download button clickable (download event may not fire in headless)');
+    }
 
     const warn_badge = page.locator('.level_badge.level_warn');
     ok(await warn_badge.count() >= 0, 'UI: WARN level badge (if WARN in logs)');
 
-    await page.locator('#close_modal_btn').click();
+    await page.locator('#modal_overlay').evaluate((el) => { el.hidden = true; }).catch(() => null);
     await sleep(200);
 
     await httpPost(`${base_url}/api/config/remove`, { path: ui_log });

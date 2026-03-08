@@ -1,5 +1,14 @@
 node_modules/
+test/.tmp/
+
+# Legacy test dirs (should not exist; ignore if leftover)
 .test_config/
+.test_config_*/
+.test_temp/
+.test_config_ext/
 test_log_*.log
-test_ui_log_*.log
+test_ui_*.log
+test_ux_*.log
+test_feat_*.log
+*.tgz
 .DS_Store

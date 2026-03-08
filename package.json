@@ -3,13 +3,28 @@
   "version": "1.0.0",
   "description": "Production-quality real-time structured log viewer for developers",
   "main": "server/server.js",
+  "bin": {
+    "smart-log-viewer": "./bin/smart-log-viewer.js"
+  },
+  "files": [
+    "bin",
+    "server",
+    "public"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "scripts": {
-    "start": "node server/server.js",
+    "start": "node bin/smart-log-viewer.js",
     "dev": "node --watch server/server.js",
-    "test": "node test/e2e.js && node test/ui.spec.js && node test/feature-tests.spec.js",
+    "pretest": "node test/cleanup.js",
+    "posttest": "node test/cleanup.js",
+    "test": "node test/e2e.js && node test/ui.spec.js && node test/feature-tests.spec.js && node test/cli.spec.js && node test/global-install.spec.js",
     "test:api": "node test/e2e.js",
     "test:ui": "node test/ui.spec.js",
-    "test:features": "node test/feature-tests.spec.js"
+    "test:features": "node test/feature-tests.spec.js",
+    "test:cli": "node test/cli.spec.js",
+    "test:global": "node test/global-install.spec.js"
   },
   "keywords": [
     "log",
@@ -20,7 +35,10 @@
   ],
   "license": "MIT",
   "dependencies": {
+    "chalk": "^4.1.2",
     "express": "^4.21.0",
+    "minimist": "^1.2.8",
+    "open": "^10.0.0",
     "ws": "^8.18.0"
   },
   "devDependencies": {

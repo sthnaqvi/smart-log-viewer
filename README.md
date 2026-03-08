@@ -46,7 +46,15 @@ Log rows display: `[payments-api] ERROR Timeout connecting to DB`
 
 Senior engineers appreciate this reasoning: clarity over minimalism.
 
-## Install
+## Installation
+
+### Via npm (recommended)
+
+```bash
+npm install -g smart-log-viewer
+```
+
+### From source
 
 ```bash
 git clone <repo>
@@ -54,14 +62,46 @@ cd smart-log-viewer
 npm install
 ```
 
-## Run
+### Via Homebrew
+
+Requires Node.js (installed automatically by Homebrew).
 
 ```bash
-npm test    # Run API + UI e2e tests first (recommended)
-npm start
+brew install ./brew/smart-log-viewer.rb
 ```
 
-Open http://localhost:3847
+Or: `brew install smart-log-viewer` (when available from a tap)
+
+## Running the CLI
+
+```bash
+smart-log-viewer
+```
+
+Starts the server on port 3847, loads config from `~/.smart-log-viewer/config.json`, and opens the browser automatically.
+
+## CLI Options
+
+| Option | Description |
+|--------|-------------|
+| `--port <n>` | Port to listen on (default: 3847) |
+| `--config <path>` | Config directory (default: ~/.smart-log-viewer) |
+| `--no-open` | Do not open browser automatically |
+| `--help`, `-h` | Show help |
+
+Examples:
+
+```bash
+smart-log-viewer --port 9000
+smart-log-viewer --config ~/my-config --no-open
+```
+
+## Run (from source)
+
+```bash
+npm test    # Run tests first (recommended)
+npm start   # Or: node bin/smart-log-viewer.js
+```
 
 ## Tests
 
@@ -114,19 +154,24 @@ Format:
 
 ## Run with PM2
 
+Works with `pm2 start smart-log-viewer` when installed globally. Uses `--no-open` behavior (no browser) when not a TTY.
+
 ```bash
-pm2 start server/server.js --name smart-log-viewer
+pm2 start smart-log-viewer --name smart-log-viewer
 ```
 
-Or with a custom port:
+With custom port:
 
 ```bash
-PORT=9000 pm2 start server/server.js --name smart-log-viewer
+pm2 start smart-log-viewer -- --port 9000
 ```
 
 ## Architecture
 
 ```
+/bin
+  smart-log-viewer.js - CLI entry point
+
 /server
   server.js       - Express, WebSocket, API routes
   tailManager.js  - tail -F, multi-file, broadcast

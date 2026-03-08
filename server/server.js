@@ -6,7 +6,11 @@ const fs = require('fs');
 const configManager = require('./configManager');
 const { TailManager } = require('./tailManager');
 
-const PORT = process.env.PORT || 3847;
+const DEFAULT_PORT = 3847;
+
+function getPort() {
+  return parseInt(process.env.PORT || String(DEFAULT_PORT), 10) || DEFAULT_PORT;
+}
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
 
 const app = express();
@@ -136,24 +140,43 @@ async function startServer() {
     // Config may not exist yet
   }
 
-  const server = app.listen(PORT, () => {
-    console.log(`Smart Log Viewer running at http://localhost:${PORT}`);
-  });
-
-  server.on('upgrade', (req, socket, head) => {
-    wss.handleUpgrade(req, socket, head, (ws) => {
-      wss.emit('connection', ws, req);
+  return new Promise((resolve, reject) => {
+    const port = getPort();
+    const server = app.listen(port, () => {
+      server.on('upgrade', (req, socket, head) => {
+        wss.handleUpgrade(req, socket, head, (ws) => {
+          wss.emit('connection', ws, req);
+        });
+      });
+      const close_all = () => {
+        for (const ws of clients) {
+          try { ws.terminate(); } catch (_) {}
+        }
+      };
+      resolve({ server, tail_manager, close_all });
     });
-  });
-
-  process.on('SIGTERM', () => {
-    tail_manager.stopAll();
-    server.close();
-    process.exit(0);
+    server.on('error', reject);
   });
 }
 
-startServer().catch((err) => {
-  console.error('Failed to start server:', err);
-  process.exit(1);
-});
+if (require.main === module) {
+  process.env.PORT = process.env.PORT || '3847';
+  process.env.CONFIG_DIR = process.env.CONFIG_DIR || require('path').join(require('os').homedir(), '.smart-log-viewer');
+  startServer()
+    .then(({ server, tail_manager, close_all }) => {
+      console.log(`Smart Log Viewer running at http://localhost:${getPort()}`);
+      const shutdown = () => {
+        tail_manager.stopAll();
+        if (close_all) close_all();
+        server.close(() => process.exit(0));
+      };
+      process.on('SIGTERM', shutdown);
+      process.on('SIGINT', shutdown);
+    })
+    .catch((err) => {
+      console.error('Failed to start server:', err);
+      process.exit(1);
+    });
+} else {
+  module.exports = { startServer };
+}

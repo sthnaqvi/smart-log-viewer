@@ -8,7 +8,9 @@ const path = require('path');
 const fs = require('fs');
 
 const PORT = 3849;
-const TEST_CONFIG_DIR = path.join(__dirname, '..', '.test_config');
+const TEST_TMP = path.join(__dirname, '.tmp');
+const TEST_CONFIG_DIR = path.join(TEST_TMP, 'config');
+const TEST_TEMP_DIR = path.join(TEST_TMP, 'logs');
 let server_process = null;
 let temp_log_path = null;
 
@@ -18,8 +20,9 @@ function sleep(ms) {
 
 function startServer() {
   return new Promise((resolve) => {
-    if (fs.existsSync(TEST_CONFIG_DIR)) fs.rmSync(TEST_CONFIG_DIR, { recursive: true });
+    if (fs.existsSync(TEST_TMP)) fs.rmSync(TEST_TMP, { recursive: true });
     fs.mkdirSync(TEST_CONFIG_DIR, { recursive: true });
+    fs.mkdirSync(TEST_TEMP_DIR, { recursive: true });
     server_process = spawn('node', ['server/server.js'], {
       cwd: path.join(__dirname, '..'),
       env: { ...process.env, PORT: String(PORT), CONFIG_DIR: TEST_CONFIG_DIR },
@@ -44,7 +47,8 @@ function stopServer() {
 }
 
 function createTempLog() {
-  temp_log_path = path.join(__dirname, '..', 'test_ui_' + Date.now() + '.log');
+  if (!fs.existsSync(TEST_TEMP_DIR)) fs.mkdirSync(TEST_TEMP_DIR, { recursive: true });
+  temp_log_path = path.join(TEST_TEMP_DIR, 'test_ui_' + Date.now() + '.log');
   const long_msg = 'A'.repeat(150);
   const sql_msg = 'INSERT INTO users (id, name) VALUES (1, \'test\')';
   const lines = [
@@ -67,7 +71,7 @@ function appendToLog(line) {
 function cleanup() {
   stopServer();
   if (temp_log_path && fs.existsSync(temp_log_path)) fs.unlinkSync(temp_log_path);
-  if (fs.existsSync(TEST_CONFIG_DIR)) fs.rmSync(TEST_CONFIG_DIR, { recursive: true });
+  if (fs.existsSync(TEST_TMP)) fs.rmSync(TEST_TMP, { recursive: true });
 }
 
 async function runTests() {
