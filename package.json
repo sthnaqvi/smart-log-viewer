@@ -1,6 +1,6 @@
 {
   "name": "smart-log-viewer",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Production-quality real-time structured log viewer for developers",
   "main": "server/server.js",
   "bin": {
@@ -42,7 +42,9 @@
     {
       "script": "bin/smart-log-viewer.js",
       "name": "smart-log-viewer",
-      "args": ["--no-open"],
+      "args": [
+        "--no-open"
+      ],
       "merge_logs": true,
       "env": {
         "PORT": "3847"
