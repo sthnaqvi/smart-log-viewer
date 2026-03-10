@@ -1,6 +1,6 @@
 {
   "name": "smart-log-viewer",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Production-quality real-time structured log viewer for developers",
   "main": "server/server.js",
   "repository": {
