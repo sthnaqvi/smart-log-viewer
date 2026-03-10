@@ -5,14 +5,14 @@
   "main": "server/server.js",
   "repository": {
     "type": "git",
-    "url": "https://github.com/sthnaqvi/smart-log-viewer.git"
+    "url": "git+https://github.com/sthnaqvi/smart-log-viewer.git"
   },
   "bugs": {
     "url": "https://github.com/sthnaqvi/smart-log-viewer/issues"
   },
   "homepage": "https://github.com/sthnaqvi/smart-log-viewer#readme",
   "bin": {
-    "smart-log-viewer": "./bin/smart-log-viewer.js"
+    "smart-log-viewer": "bin/smart-log-viewer.js"
   },
   "files": [
     "bin",
