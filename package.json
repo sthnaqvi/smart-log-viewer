@@ -3,6 +3,14 @@
   "version": "1.0.2",
   "description": "Production-quality real-time structured log viewer for developers",
   "main": "server/server.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sthnaqvi/smart-log-viewer.git"
+  },
+  "bugs": {
+    "url": "https://github.com/sthnaqvi/smart-log-viewer/issues"
+  },
+  "homepage": "https://github.com/sthnaqvi/smart-log-viewer#readme",
   "bin": {
     "smart-log-viewer": "./bin/smart-log-viewer.js"
   },
@@ -29,11 +37,25 @@
   },
   "keywords": [
     "log",
-    "viewer",
+    "log-viewer",
+    "logs",
     "tail",
+    "tail-f",
+    "real-time",
     "websocket",
+    "json-logs",
+    "pino",
+    "winston",
+    "structured-logs",
+    "debugging",
+    "devtools",
     "developer-tools",
-    "pm2-module"
+    "monitoring",
+    "log-monitoring",
+    "pm2",
+    "pm2-module",
+    "cli",
+    "log-tail"
   ],
   "config": {
     "port": 3847

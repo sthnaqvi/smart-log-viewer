@@ -1,6 +1,27 @@
 # Smart Log Viewer
 
+[![npm version](https://img.shields.io/npm/v/smart-log-viewer.svg)](https://www.npmjs.com/package/smart-log-viewer)
+[![npm downloads](https://img.shields.io/npm/dm/smart-log-viewer.svg)](https://www.npmjs.com/package/smart-log-viewer)
+[![Node.js](https://img.shields.io/node/v/smart-log-viewer.svg)](https://nodejs.org)
+[![GitHub](https://img.shields.io/github/stars/sthnaqvi/smart-log-viewer?style=social)](https://github.com/sthnaqvi/smart-log-viewer)
+
 A production-quality real-time structured log viewer for developers. Stream local log files to a browser UI with zero heavy frameworks—just Node.js, Express, WebSocket, and vanilla JavaScript.
+
+<p align="center">
+  <img src="public/screenshots/product-main.png" width="800" alt="Smart Log Viewer - real-time structured log viewer">
+</p>
+
+### At a glance (for developers evaluating this tool)
+
+| Metric | Value |
+|--------|-------|
+| **Runtime** | Node.js ≥18 |
+| **Dependencies** | 5 (chalk, commander, express, open, ws) |
+| **Bundle size** | No build step; vanilla JS frontend |
+| **Config** | `~/.smart-log-viewer/config.json` |
+| **Default port** | 3847 |
+| **PM2** | Supported via `pm2 install smart-log-viewer` |
+| **Tests** | E2E, UI, features, CLI, global install |
 
 ## What Problem This Solves
 
@@ -59,7 +80,7 @@ To update: run the same command again. After updating, `smart-log-viewer --versi
 ### From source
 
 ```bash
-git clone <repo>
+git clone https://github.com/sthnaqvi/smart-log-viewer.git
 cd smart-log-viewer
 npm install
 ```
@@ -226,3 +247,7 @@ The server handles:
 - ws (WebSocket)
 - Vanilla JS frontend
 - Modern CSS (no Bootstrap)
+
+---
+
+**Repository:** [github.com/sthnaqvi/smart-log-viewer](https://github.com/sthnaqvi/smart-log-viewer) · **npm:** [smart-log-viewer](https://www.npmjs.com/package/smart-log-viewer) · **Issues:** [Report a bug](https://github.com/sthnaqvi/smart-log-viewer/issues)
