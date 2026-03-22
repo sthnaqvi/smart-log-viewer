@@ -25,16 +25,62 @@ class TailManager {
     if (!line || typeof line !== 'string') return null;
     const trimmed = line.trim();
     if (!trimmed) return null;
-    try {
-      const parsed = JSON.parse(trimmed);
-      if (parsed && typeof parsed === 'object') {
-        return parsed;
-      }
-    } catch (_) {
-      // Malformed JSON - return raw line as fallback
-      return { raw: trimmed, msg: trimmed };
+    
+    // Fast path: Try standard JSON parse
+    if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (parsed && typeof parsed === 'object') {
+          parsed.raw = trimmed; // ensure raw is preserved
+          return parsed;
+        }
+      } catch (_) { /* Fallback to text parsing */ }
     }
-    return null;
+
+    // Advanced Text Parsing Fallback
+    let msg = trimmed;
+    let lv = null;
+    let ts = null;
+    let fl = null;
+    
+    // 1. Extract Level (e.g. [INFO], ERROR:, level=WARN)
+    const levelRegex = /(?:\[|\b)(ERROR|WARN|WARNING|INFO|DEBUG|TRACE|FATAL|VERBOSE|SQL)(?:\]|\b|:)/i;
+    const levelMatch = msg.match(levelRegex);
+    if (levelMatch) {
+      lv = levelMatch[1].toUpperCase();
+      if (lv === 'WARNING') lv = 'WARN';
+      msg = msg.replace(levelMatch[0], '').trim();
+    }
+    
+    // 2. Extract Timestamp (ISO 8601, typical log dates, or syslog custom dates)
+    const isoRegex = /\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}:\d{2}(?:\.\d{3,6})?(?:Z|[+-]\d{2}:?\d{2})?/;
+    const syslogRegex = /[A-Z][a-z]{2}\s+\d{1,2}\s+\d{2}:\d{2}:\d{2}/;
+    const customDateRegex = /(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)?\s*(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2}\s+\d{2}:\d{2}:\d{2}\s+(?:[A-Z]{3,4}\s+)?\d{4}/;
+    
+    let tsMatch = msg.match(isoRegex) || msg.match(customDateRegex) || msg.match(syslogRegex);
+    if (tsMatch) {
+      ts = tsMatch[0];
+      msg = msg.replace(tsMatch[0], '').trim();
+    }
+    
+    // 3. Extract File:Line (e.g. server.js:42, app/main.go:12)
+    const fileLineRegex = /(?:[a-zA-Z0-9_-]+\/)*[a-zA-Z0-9_-]+\.(?:js|ts|go|py|rs|cpp|c|h|rb|php|java):\d+/;
+    const flMatch = msg.match(fileLineRegex);
+    if (flMatch) {
+      fl = flMatch[0];
+      msg = msg.replace(flMatch[0], '').trim();
+    }
+    
+    // Clean up leftover brackets/hyphens at the start of the message
+    msg = msg.replace(/^[-:\]\|\s]+/, '').trim();
+    
+    return {
+      raw: trimmed,
+      msg: msg || trimmed, 
+      level: lv || 'INFO', 
+      ts: ts || '',
+      fl: fl || ''
+    };
   }
 
   _emit(file_path, entry) {

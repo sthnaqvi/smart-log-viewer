@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+  <title>Smart Log Viewer | Obsidian Console</title>
+  <link rel="icon" type="image/svg+xml" href="log.svg">
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&amp;family=Syne:wght@600;700;800&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+  <script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "surface": "#050505",
+            "surface-container-low": "#0a0a0a",
+            "surface-container": "#111111",
+            "surface-container-high": "#1a1a1a",
+            "surface-container-highest": "#222222",
+            "surface-bright": "#2a2a2a",
+            "primary": "#ff4500",
+            "on-primary": "#ffffff",
+            "primary-container": "#ff6a33",
+            "on-primary-container": "#ffffff",
+            "secondary": "#ff8c00",
+            "on-secondary": "#ffffff",
+            "secondary-container": "#ffaa33",
+            "tertiary": "#8a2be2",
+            "on-background": "#fafafa",
+            "on-surface": "#fafafa",
+            "on-surface-variant": "#a3a3a3",
+            "outline-variant": "#333333",
+            "error": "#ef4444",
+          },
+          fontFamily: {
+            "headline": ["Syne", "sans-serif"],
+            "body": ["Outfit", "sans-serif"],
+            "mono": ["JetBrains Mono", "monospace"]
+          },
+        },
+      },
+    }
+  </script>
+  <style>
+    /* Tailwind utilities and overrides mapped to our ids/classes */
+    .live_logs_toggle input:checked + .live_dot {
+      background: var(--error) !important;
+      box-shadow: 0 0 8px var(--error) !important;
+      animation: pulseLive 2s infinite !important;
+    }
+    @keyframes pulseLive {
+      0% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.6; transform: scale(0.8); }
+      100% { opacity: 1; transform: scale(1); }
+    }
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    }
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(70, 72, 77, 0.5); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(70, 72, 77, 0.8); }
+    
+    .cell_truncate {
+      display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: default;
+    }
+    .cell_truncate[data-full]:hover { cursor: pointer; }
+
+    [hidden] { display: none !important; }
+
+    /* JSON CSS */
+    .json-tree { font-family: "JetBrains Mono", monospace; font-size: 12px; line-height: 1.5; }
+    .json-node { margin-left: 16px; }
+    .json-key { color: #ff4500; font-weight: 500; }
+    .json-string { color: #a6e3a1; }
+    .json-number { color: #f9e2af; }
+    .json-boolean { color: #ff6e84; }
+    .json-null { color: #aaabb0; font-style: italic; }
+    .json-toggle { cursor: pointer; color: #7f849c; margin-right: 4px; display: inline-block; width: 14px; text-align: center; }
+    .json-collapsed > .json-children { display: none; }
+    
+    #chat_panel:not([hidden]) {
+      transform: translateX(0);
+    }
+    #command_palette_overlay .palette_item {
+      padding: 10px 16px; cursor: pointer; display: flex; justify-content: space-between; color: #aaabb0; font-size: 13px;
+    }
+    #command_palette_overlay .palette_item.selected,
+    #command_palette_overlay .palette_item:hover {
+      background: rgba(255,255,255,0.05); color: #f6f6fc;
+    }
+    #command_palette_overlay .palette_item .palette_shortcut {
+      font-size: 10px; opacity: 0.5; font-weight: 700;
+    }
+  </style>
+</head>
+<body class="bg-[#020202] text-white font-body selection:bg-primary/30 antialiased overflow-hidden h-screen flex items-center justify-center relative p-4 sm:p-8">
+  
+  <style>
+    @keyframes rotateBg { 100% { transform: rotate(360deg); } }
+  </style>
+
+  <!-- Fluid Magma Backgrounds -->
+  <div class="fixed top-[-50%] left-[-50%] w-[200%] h-[200%] bg-[radial-gradient(circle_at_50%_50%,#ff2a00_0%,#000000_60%)] opacity-40 z-[-1] blur-[80px]" style="animation: rotateBg 40s linear infinite;"></div>
+  <div class="fixed top-[-50%] left-[-50%] w-[200%] h-[200%] bg-[radial-gradient(circle_at_30%_70%,#ff6200_0%,transparent_50%)] mix-blend-screen opacity-30 z-[-1] blur-[100px]" style="animation: rotateBg 30s linear infinite reverse;"></div>
+  
+  <!-- Window Wrapper -->
+  <div class="w-full max-w-[1600px] h-full max-h-[900px] bg-[#050505]/80 backdrop-blur-3xl border border-white/10 rounded-2xl shadow-[0_40px_100px_-20px_rgba(255,42,0,0.3)] flex flex-col overflow-hidden relative z-10 transition-transform duration-500 ease-out hover:shadow-[0_40px_120px_-20px_rgba(255,42,0,0.4)]">
+    
+    <!-- Window Chrome -->
+    <div class="h-10 border-b border-white/5 bg-black/60 flex items-center px-4 justify-between flex-shrink-0 relative z-[60]">
+      <div class="flex gap-2">
+        <div class="w-2.5 h-2.5 rounded-full bg-red-500/80"></div>
+        <div class="w-2.5 h-2.5 rounded-full bg-yellow-500/80"></div>
+        <div class="w-2.5 h-2.5 rounded-full bg-green-500/80"></div>
+      </div>
+      <div class="font-mono text-[10px] text-white/30 tracking-[0.2em] uppercase absolute left-1/2 -translate-x-1/2 hidden sm:block">Live Connect</div>
+    </div>
+    
+    <!-- Inner Layout Container -->
+    <div class="flex-1 flex min-h-0 relative">
+      
+      <aside class="w-[280px] h-full flex-shrink-0 flex flex-col pt-6 pb-6 px-4 bg-[#050505]/95 font-['Outfit'] antialiased tracking-tight text-sm z-[50] relative">
+    <div class="mb-10 px-2 flex items-center gap-3">
+      <img src="logo.svg" alt="Magma Logo" class="w-8 h-8 drop-shadow-[0_0_15px_rgba(255,42,0,0.8)]">
+      <div>
+        <h1 class="font-syne text-xl font-bold tracking-widest text-white uppercase">SMART LOGS</h1>
+        <p class="font-outfit text-[10px] uppercase tracking-[0.2em] text-[#ff4500]">Smart Log Viewer</p>
+      </div>
+    </div>
+    
+    <div class="mt-4 space-y-4 flex-1 flex flex-col min-h-0">
+      <div class="flex items-center justify-between px-2">
+        <span class="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">Log Sources</span>
+        <button id="add_path_btn" class="w-6 h-6 flex items-center justify-center rounded bg-surface-container-highest hover:bg-primary/20 hover:text-primary transition-colors cursor-pointer outline-none border-none">
+          <span class="material-symbols-outlined text-[16px]">add</span>
+        </button>
+      </div>
+      <ul id="file_list" class="space-y-1 overflow-y-auto flex-1 px-1 -mx-1 m-0 list-none"></ul>
+    </div>
+    
+    <div class="mt-auto pt-6 border-t border-outline-variant/10 space-y-1">
+      <div class="text-[11px] text-on-surface-variant/50 px-2">~/.smart-log-viewer/config.json</div>
+    </div>
+  </aside>
+
+  <main class="flex-1 flex flex-col relative overflow-hidden min-w-0 z-10">
+    <header class="sticky top-0 w-full z-[40] bg-[#050505]/95 backdrop-blur-2xl flex justify-between items-center h-16 px-6 font-['Outfit'] font-medium text-sm">
+      <div class="flex items-center gap-6 flex-1 min-w-0">
+        <div class="relative group max-w-md w-full">
+          <span class="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-white/40 text-lg">search</span>
+          <input id="text_search" class="w-full bg-white/5 border border-white/10 text-white rounded-full pl-10 pr-4 py-2 text-xs focus:ring-1 focus:ring-[#ff4500] focus:border-[#ff4500] focus:bg-white/10 transition-all placeholder:text-white/30 outline-none shadow-inner" placeholder="Search logs (Cmd+K)..." type="text"/>
+        </div>
+      </div>
+      
+      <div class="flex items-center gap-4 flex-shrink-0">
+        <select id="level_filter" class="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white outline-none focus:border-[#ff4500] transition-colors appearance-none">
+          <option value="" class="bg-black text-white">All levels</option>
+          <option value="ERROR" class="bg-black text-white">ERROR</option>
+          <option value="WARN" class="bg-black text-white">WARN</option>
+          <option value="INFO" class="bg-black text-white">INFO</option>
+          <option value="DEBUG" class="bg-black text-white">DEBUG</option>
+        </select>
+        <select id="time_filter" class="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white outline-none focus:border-[#ff4500] transition-colors appearance-none">
+          <option value="" class="bg-black text-white">All time</option>
+          <option value="5m" class="bg-black text-white">Last 5m</option>
+          <option value="15m" class="bg-black text-white">Last 15m</option>
+          <option value="1h" class="bg-black text-white">Last 1h</option>
+          <option value="6h" class="bg-black text-white">Last 6h</option>
+          <option value="24h" class="bg-black text-white">Last 24h</option>
+        </select>
+        
+        <div class="h-6 w-[1px] bg-outline-variant/20 mx-1"></div>
+        
+        <label class="live_logs_toggle flex items-center gap-2 cursor-pointer hover:bg-white/5 px-2 py-1.5 rounded-lg transition-colors select-none">
+          <input type="checkbox" id="auto_scroll" class="sr-only" checked>
+          <span class="live_dot w-2 h-2 rounded-full relative bg-on-surface-variant"></span>
+          <span class="text-xs text-[#f6f6fc]/80">Live Logs</span>
+        </label>
+        
+        <button id="pause_btn" class="text-on-surface-variant hover:text-primary border-none outline-none cursor-pointer hover:bg-surface-high px-3 py-1.5 rounded-lg transition-colors duration-200 text-xs flex items-center gap-1.5 bg-transparent">
+          <span class="material-symbols-outlined text-[16px]">pause</span> Pause
+        </button>
+        <button id="clear_btn" class="text-on-surface-variant hover:text-primary border-none outline-none cursor-pointer hover:bg-surface-high px-3 py-1.5 rounded-lg transition-colors duration-200 text-xs flex items-center gap-1.5 bg-transparent">
+          <span class="material-symbols-outlined text-[16px]">delete</span> Clear
+        </button>
+        <button id="download_btn" class="text-on-surface-variant hover:text-primary border-none outline-none cursor-pointer hover:bg-surface-high px-3 py-1.5 rounded-lg transition-colors duration-200 text-xs flex items-center gap-1.5 bg-transparent" title="Download visible logs">
+          <span class="material-symbols-outlined text-[16px]">download</span>
+        </button>
+        
+        <div class="h-6 w-[1px] bg-outline-variant/20 mx-1"></div>
+        
+        <button id="ai_chat_btn" class="bg-[#ff4500]/10 cursor-pointer outline-none hover:bg-[#ff4500]/20 text-[#ff4500] border border-[#ff4500]/30 px-4 py-1.5 rounded-full font-bold text-xs flex items-center gap-2 transition-all hover:shadow-[0_0_20px_rgba(255,69,0,0.3)] hover:scale-105 active:scale-95">
+          <span class="material-symbols-outlined text-[16px]" data-weight="fill">auto_awesome</span>
+          AI Chat
+        </button>
+      </div>
+    </header>
+
+    <div id="visible_sources" class="px-6 py-2 border-b border-white/5 bg-transparent flex items-center gap-2 flex-wrap min-h-[36px]"></div>
+
+    <div id="volume_graph_wrap" class="h-16 w-full bg-surface-container-low/50 border-b border-outline-variant/10 flex-shrink-0">
+      <canvas id="volume_graph" class="w-full h-full"></canvas>
+    </div>
+    
+    <div class="log_container relative flex-1 overflow-auto bg-transparent">
+      <div id="empty_state" class="absolute inset-0 flex flex-col flex-1 items-center justify-center gap-4 bg-transparent z-0" hidden>
+        <div id="empty_illustration" class="opacity-20 transform scale-125">
+           <svg viewBox="0 0 24 24" width="100" height="100" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 17l6-6-6-6M12 19h8"/>
+           </svg>
+        </div>
+        <p id="empty_state_msg" class="text-on-surface-variant text-sm mt-4 text-center max-w-sm"></p>
+      </div>
+
+      <table id="log_table" class="w-full text-left border-collapse table-fixed relative z-[10]">
+        <thead class="sticky top-0 bg-white/[0.02] backdrop-blur-xl z-[20] shadow-[0_4px_30px_rgba(0,0,0,0.5)] border-b border-white/10">
+          <tr class="text-[10px] font-bold text-white/50 uppercase tracking-[0.1em] font-mono">
+            <th class="w-10 py-3 px-3 text-center border-b border-white/5"></th>
+            <th class="w-32 py-3 px-2 border-b border-white/5">Source</th>
+            <th class="w-32 py-3 px-2 border-b border-white/5 mx-2">Timestamp</th>
+            <th class="w-24 py-3 px-2 border-b border-white/5">Level</th>
+            <th class="w-48 py-3 px-2 border-b border-white/5">File:Line</th>
+            <th class="py-3 px-4 border-b border-white/5">Message</th>
+          </tr>
+        </thead>
+        <tbody id="log_body" class="font-mono text-sm leading-[2] text-white/50 bg-[#050505]/90"></tbody>
+      </table>
+    </div>
+  </main>
+    </div> <!-- Close Inner Layout Container -->
+  </div> <!-- Close Window Wrapper -->
+  
+  <div id="add_path_overlay" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center" hidden>
+    <div class="bg-surface-container-high border border-outline-variant/20 rounded-xl w-[480px] flex flex-col shadow-2xl overflow-hidden transform transition-all">
+      <div class="px-6 py-4 border-b border-outline-variant/10 flex items-center justify-between">
+        <h3 class="font-headline font-bold text-on-surface m-0 text-base">Add Log Source</h3>
+      </div>
+      <div class="p-6 space-y-5 flex-1 overflow-y-auto">
+        <div>
+          <label class="block text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-2">Path</label>
+          <input type="text" id="new_path_input" class="w-full bg-surface-container border border-outline-variant/20 rounded-lg px-3 py-2 text-sm text-on-surface focus:border-primary/50 focus:ring-1 focus:ring-primary/30 outline-none transition-all" placeholder="/var/log/app.log">
+        </div>
+        <div>
+          <label class="block text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-2">Tag Name</label>
+          <input type="text" id="new_tag_input" class="w-full bg-surface-container border border-outline-variant/20 rounded-lg px-3 py-2 text-sm text-on-surface focus:border-primary/50 focus:ring-1 focus:ring-primary/30 outline-none transition-all" placeholder="app-service">
+        </div>
+        <div>
+          <label class="block text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-2">Color</label>
+          <div class="flex items-center gap-3">
+            <input type="color" id="new_color_input" class="w-8 h-8 rounded cursor-pointer border-none p-0 bg-transparent flex-shrink-0" value="#ff4500">
+            <span id="color_hex" class="font-mono text-sm text-on-surface-variant tracking-wider uppercase">#FF4500</span>
+          </div>
+        </div>
+        <p id="add_path_error" class="text-error text-xs m-0 h-4"></p>
+      </div>
+      <div class="px-6 py-4 border-t border-outline-variant/10 bg-surface-container-highest/50 flex justify-end gap-3">
+        <button id="cancel_add_btn" type="button" class="cursor-pointer border-none bg-transparent px-4 py-2 rounded-lg text-sm font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-bright transition-colors">Cancel</button>
+        <button id="confirm_add_btn" type="button" class="cursor-pointer border-none px-4 py-2 rounded-lg text-sm font-medium bg-primary text-on-primary hover:brightness-110 active:scale-95 transition-all shadow-[0_0_10px_rgba(132,173,255,0.2)]">Add Path</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="edit_tag_overlay" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center" hidden>
+    <div class="bg-surface-container-high border border-outline-variant/20 rounded-xl w-[480px] flex flex-col shadow-2xl overflow-hidden transform transition-all">
+      <div class="px-6 py-4 border-b border-outline-variant/10 flex items-center justify-between">
+        <h3 class="font-headline font-bold text-on-surface m-0 text-base">Edit Source</h3>
+      </div>
+      <div class="p-6 space-y-5 flex-1">
+        <input type="hidden" id="edit_path_input">
+        <div>
+          <label class="block text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-2">Tag Name</label>
+          <input type="text" id="edit_tag_input" class="w-full bg-surface-container border border-outline-variant/20 rounded-lg px-3 py-2 text-sm text-on-surface focus:border-primary/50 focus:ring-1 focus:ring-primary/30 outline-none transition-all">
+        </div>
+        <div>
+          <label class="block text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-2">Color</label>
+          <div class="flex items-center gap-3">
+            <input type="color" id="edit_color_input" class="w-8 h-8 rounded cursor-pointer border-none p-0 bg-transparent flex-shrink-0">
+            <span id="edit_color_hex" class="font-mono text-sm text-on-surface-variant tracking-wider uppercase"></span>
+          </div>
+        </div>
+      </div>
+      <div class="px-6 py-4 border-t border-outline-variant/10 bg-surface-container-highest/50 flex justify-end gap-3">
+        <button id="cancel_edit_btn" type="button" class="cursor-pointer border-none bg-transparent px-4 py-2 rounded-lg text-sm font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-bright transition-colors">Cancel</button>
+        <button id="confirm_edit_btn" type="button" class="cursor-pointer border-none px-4 py-2 rounded-lg text-sm font-medium bg-primary text-on-primary hover:brightness-110 active:scale-95 transition-all shadow-[0_0_10px_rgba(132,173,255,0.2)]">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal_overlay" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center" hidden>
+    <div class="bg-surface-container-high border border-outline-variant/20 rounded-xl w-[700px] max-w-[90vw] max-h-[85vh] flex flex-col shadow-2xl overflow-hidden transform transition-all">
+      <div class="px-6 py-4 border-b border-outline-variant/10 flex items-center justify-between">
+        <h3 class="font-headline font-bold text-on-surface m-0 text-base">Log Entry (JSON)</h3>
+        <div class="flex gap-2">
+          <button id="copy_log_btn" type="button" class="cursor-pointer px-3 py-1.5 rounded bg-surface-container hover:bg-surface-bright text-xs font-medium text-on-surface-variant hover:text-on-surface border border-outline-variant/20 transition-colors">Copy</button>
+          <button id="close_modal_btn" type="button" class="cursor-pointer px-3 py-1.5 rounded bg-surface-container hover:bg-surface-bright text-xs font-medium text-on-surface-variant hover:text-on-surface border border-outline-variant/20 transition-colors">Close</button>
+        </div>
+      </div>
+      <pre id="modal_content" class="p-6 m-0 overflow-auto flex-1 font-mono text-xs leading-[1.6] text-on-surface select-text"></pre>
+    </div>
+  </div>
+
+  <div id="command_palette_overlay" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[110] flex items-center justify-center" hidden>
+    <div class="bg-surface-container-high border border-outline-variant/20 rounded-xl w-[500px] max-w-[90vw] max-h-[60vh] flex flex-col shadow-2xl overflow-hidden absolute top-32 transform transition-all">
+      <div class="px-4 py-4 border-b border-outline-variant/10 flex items-center gap-3">
+        <span class="material-symbols-outlined text-on-surface-variant">search</span>
+        <input type="text" id="palette_input" class="w-full bg-transparent border-none text-sm text-on-surface outline-none placeholder:text-on-surface-variant/50" placeholder="Search commands or files...">
+      </div>
+      <ul id="palette_list" class="flex-1 overflow-y-auto py-2 m-0 list-none max-h-[300px]"></ul>
+    </div>
+  </div>
+
+  <div id="cell_tooltip" class="fixed max-w-[400px] max-h-[200px] p-3 bg-surface-container-high border border-outline-variant/20 rounded-lg text-xs whitespace-pre-wrap break-all overflow-auto z-[1000] pointer-events-none opacity-0 transition-opacity duration-100 ease-in backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.5)] font-mono text-on-surface"></div>
+
+  <aside id="chat_panel" class="w-[320px] h-screen bg-surface-container-highest/90 backdrop-blur-2xl border-l border-outline-variant/15 flex flex-col z-[50] absolute right-0 top-0 shadow-[-10px_0_30px_rgba(0,0,0,0.3)] transform transition-transform duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)] translate-x-full" hidden>
+    <div class="p-4 flex items-center justify-between border-b border-outline-variant/10">
+      <div class="flex items-center gap-2">
+        <span class="material-symbols-outlined text-secondary" data-weight="fill">auto_awesome</span>
+        <span class="font-headline font-bold text-sm tracking-tight text-on-surface">AI Log Assistant</span>
+      </div>
+      <button id="close_chat_btn" class="w-6 h-6 flex items-center justify-center rounded hover:bg-white/5 text-on-surface-variant hover:text-on-surface cursor-pointer outline-none border-none bg-transparent transition-colors">
+        <span class="material-symbols-outlined text-lg">close</span>
+      </button>
+    </div>
+    
+    <div id="chat_messages" class="flex-1 overflow-y-auto p-5 space-y-6">
+      <div class="flex flex-col gap-2">
+        <div class="flex items-center gap-2">
+          <div class="w-6 h-6 rounded-full bg-secondary flex items-center justify-center shadow-[0_0_10px_rgba(197,126,255,0.4)]">
+            <span class="material-symbols-outlined text-on-secondary text-[14px]">smart_toy</span>
+          </div>
+          <span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Cortex-4</span>
+        </div>
+        <div class="bg-surface border border-outline-variant/20 rounded-xl rounded-tl-none p-3.5 text-[13px] leading-relaxed text-on-surface shadow-sm">
+          👋 Hi! I'm your AI log analysis assistant.<br/><br/>
+          Ask me questions about your logs to identify patterns, debug errors, and suggest fixes.
+        </div>
+      </div>
+    </div>
+    
+    <div class="p-4 bg-surface-container border-t border-outline-variant/20 relative z-10">
+      <div class="relative flex items-center border border-outline-variant/30 rounded-lg bg-surface focus-within:border-secondary/50 focus-within:ring-1 focus-within:ring-secondary/30 transition-all overflow-hidden shadow-inner">
+        <input id="chat_input" class="w-full bg-transparent border-none pl-3 pr-10 py-3 text-[13px] text-on-surface outline-none placeholder:text-on-surface-variant/40" placeholder="Ask about these logs..." type="text"/>
+        <button id="send_chat_btn" class="cursor-pointer border-none absolute right-1 w-8 h-8 rounded-md bg-secondary/10 text-secondary hover:bg-secondary hover:text-on-secondary flex items-center justify-center transition-colors">
+          <span class="material-symbols-outlined text-[16px]">send</span>
+        </button>
+      </div>
+      <div class="mt-2 text-center">
+        <span class="text-[9px] text-on-surface-variant/40 uppercase tracking-widest font-semibold flex items-center justify-center gap-1">
+          <span class="material-symbols-outlined text-[10px]">bolt</span> Built for the UNSEEN
+        </span>
+      </div>
+    </div>
+    
+    <div class="absolute inset-0 pointer-events-none rounded-l-2xl border-l border-secondary/20 shadow-[inset_10px_0_20px_-10px_rgba(197,126,255,0.05)]"></div>
+  </aside>
+
+  <script src="app.js"></script>
+</body>
+</html>

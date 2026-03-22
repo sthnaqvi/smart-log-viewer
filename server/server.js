@@ -125,6 +125,98 @@ app.post('/api/config/remove', async (req, res) => {
   }
 });
 
+// AI Chat endpoint - accepts message and recent logs, returns AI response
+app.post('/api/ai/chat', async (req, res) => {
+  try {
+    const { message, recentLogs } = req.body;
+    if (!message || typeof message !== 'string') {
+      return res.status(400).json({ error: 'message is required' });
+    }
+
+    // Build context from recent logs
+    const logContext = recentLogs?.length > 0
+      ? recentLogs.slice(-50).map(log => {
+        const level = log.lv || log.level || '-';
+        const msg = log.msg || log.message || log.raw || '-';
+        const tag = log._source_tag || '-';
+        const ts = log.ts || '-';
+        return `[${ts}] [${level}] [${tag}] ${msg}`;
+      }).join('\n')
+      : 'No recent logs available.';
+
+    // Check if OpenAI API key is available
+    const openaiApiKey = process.env.OPENAI_API_KEY;
+
+    if (openaiApiKey) {
+      // Use OpenAI API with native fetch (Node.js 18+)
+      const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${openaiApiKey}`
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [
+            {
+              role: 'system',
+              content: `You are an expert software developer helping analyze application logs. 
+              - Provide clear, actionable insights about errors and problems in the logs
+              - When you identify issues, explain what they mean and suggest possible fixes
+              - Be concise but thorough in your analysis
+              - If logs contain stack traces, analyze them and identify root causes
+              - Format your responses using markdown for readability`
+            },
+            {
+              role: 'user',
+              content: `Here are the recent logs from the application:\n\n${logContext}\n\nUser question: ${message}`
+            }
+          ],
+          max_tokens: 800
+        })
+      });
+
+      if (!aiResponse.ok) {
+        const errorData = await aiResponse.json().catch(() => ({}));
+        throw new Error(errorData.error?.message || `AI API error: ${aiResponse.status}`);
+      }
+
+      const aiData = await aiResponse.json();
+      const response = aiData.choices?.[0]?.message?.content || 'No response from AI.';
+      res.json({ response });
+    } else {
+      // Mock response when no API key is available
+      const mockResponse = `# AI Log Analysis
+
+## Setup Required
+
+To enable AI-powered log analysis, please set the OpenAI API key:
+
+OPENAI_API_KEY=your_api_key_here
+
+You can get an API key from [OpenAI Platform](https://platform.openai.com/api-keys).
+
+## Your Question
+
+> ${message}
+
+## Recent Logs Context
+
+${recentLogs?.length > 0 ? `I can see ${recentLogs.length} recent log entries. Here's a summary of errors:
+
+${recentLogs.filter(l => (l.lv || l.level || '').toUpperCase() === 'ERROR').slice(0, 5).map(l => `- ${l.msg || l.message || l.raw}`).join('\n') || 'No ERROR level logs found.'}` : 'No logs available for analysis.'}
+
+---
+
+*Note: This is a placeholder response. Set OPENAI_API_KEY environment variable to enable AI analysis.*`;
+
+      res.json({ response: mockResponse });
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 async function startServer() {
   try {
     const sources = await configManager.getSources();
@@ -150,7 +242,7 @@ async function startServer() {
       });
       const close_all = () => {
         for (const ws of clients) {
-          try { ws.terminate(); } catch (_) {}
+          try { ws.terminate(); } catch (_) { }
         }
       };
       resolve({ server, tail_manager, close_all });
