@@ -328,7 +328,7 @@ async function runTests() {
     await httpPost(`${base_url}/api/config/add`, { path: ui_log, tagName: 'filter-test' });
     await sleep(500);
 
-    await page.goto(base_url, { waitUntil: 'networkidle' });
+    await page.goto(base_url + '/app.html', { waitUntil: 'networkidle' });
     await sleep(1500);
 
     const file_items = page.locator('.file_item');
@@ -353,13 +353,13 @@ async function runTests() {
     await page.locator('#text_search').fill('');
     await sleep(300);
 
-    const tag_cb = page.locator('.filters_center input[data-tag="filter-test"]');
+    const tag_cb = page.locator('#visible_sources input[data-tag="filter-test"]');
     if (await tag_cb.count() > 0) {
-      await tag_cb.uncheck();
+      await tag_cb.uncheck({ force: true });
       await sleep(300);
       const hidden_rows = await page.locator('#log_body tr.log_row').count();
       ok(hidden_rows === 0, `UI: Tag toggle hides logs (${hidden_rows} rows)`);
-      await tag_cb.check();
+      await tag_cb.check({ force: true });
       await sleep(300);
     } else {
       ok(true, 'UI: Tag toggle (skip - no toggle)');
@@ -446,7 +446,7 @@ async function runTests() {
       ok(true, 'UI: Download button clickable (download event may not fire in headless)');
     }
 
-    const warn_badge = page.locator('.level_badge.level_warn');
+    const warn_badge = page.locator('.text-tertiary');
     ok(await warn_badge.count() >= 0, 'UI: WARN level badge (if WARN in logs)');
 
     await page.locator('#modal_overlay').evaluate((el) => { el.hidden = true; }).catch(() => null);
@@ -455,7 +455,7 @@ async function runTests() {
     await httpPost(`${base_url}/api/config/remove`, { path: ui_log });
     await httpPost(`${base_url}/api/config/remove`, { path: long_log });
     await httpPost(`${base_url}/api/config/remove`, { path: persist_log });
-    await page.goto(base_url);
+    await page.goto(base_url + '/app.html');
     await sleep(500);
 
     const empty_msg = await page.locator('#empty_state_msg').textContent();
@@ -469,14 +469,17 @@ async function runTests() {
     await page.reload();
     await sleep(1500);
 
-    await page.locator('.file_item .edit_btn').first().click();
+    const first_item = page.locator('.file_item').first();
+    await first_item.hover();
+    await sleep(200);
+    await first_item.locator('.edit_btn').first().click();
     await sleep(200);
     const edit_modal = page.locator('#edit_tag_overlay');
     ok(!(await edit_modal.getAttribute('hidden')), 'UI: Edit modal opens');
     await page.locator('#edit_tag_input').fill('after-edit');
     await page.locator('#confirm_edit_btn').click();
     await sleep(500);
-    const has_updated_tag = await page.locator('.tag_badge').filter({ hasText: 'after-edit' }).count() > 0;
+    const has_updated_tag = await page.locator('.file_item').filter({ hasText: 'after-edit' }).count() > 0;
     ok(has_updated_tag, 'UI: Edit source updates tag');
 
     await page.locator('#add_path_btn').click();

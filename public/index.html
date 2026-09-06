@@ -1,132 +1,360 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Smart Log Viewer</title>
-  <link rel="icon" type="image/svg+xml" href="favicon.svg">
-  <link rel="stylesheet" href="styles.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Log Viewer | Built for the UNSEEN</title>
+    <link rel="icon" type="image/svg+xml" href="logo.svg">
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@200;300;400;500;600;800&family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+    
+    <!-- Dependencies -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/studio-freight/lenis@1.0.29/bundled/lenis.min.js"></script>
+
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              syne: ['Syne', 'sans-serif'],
+              outfit: ['Outfit', 'sans-serif'],
+              mono: ['JetBrains Mono', 'monospace'],
+            },
+            colors: {
+              magma: {
+                dark: '#020202',
+                red: '#ff2a00',
+                orange: '#ff6200',
+                yellow: '#ffaa00',
+              }
+            }
+          }
+        }
+      }
+    </script>
+  
+    <style>
+      :root {
+        --bg: #020202;
+        --text: #ffffff;
+      }
+      body {
+        margin: 0;
+        background-color: var(--bg);
+        color: var(--text);
+        font-family: 'Outfit', sans-serif;
+        overflow-x: hidden;
+      }
+      /* Lenis Smooth Scroll Recommended CSS */
+      html.lenis { height: auto; }
+      .lenis.lenis-smooth { scroll-behavior: auto; }
+      .lenis.lenis-smooth [data-lenis-prevent] { overscroll-behavior: contain; }
+      .lenis.lenis-stopped { overflow: hidden; }
+      .lenis.lenis-scrolling iframe { pointer-events: none; }
+      
+      /* Noise Grain */
+      .noise {
+        position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+        pointer-events: none; z-index: 9999; opacity: 0.04; mix-blend-mode: overlay;
+        background: url('data:image/svg+xml;utf8,%3Csvg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"%3E%3Cfilter id="noiseFilter"%3E%3CfeTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3" stitchTiles="stitch"/%3E%3C/filter%3E%3Crect width="100%25" height="100%25" filter="url(%23noiseFilter)"/%3E%3C/svg%3E');
+      }
+
+      /* WebGL-like CSS Fluid Background */
+      .fluid-bg {
+        position: fixed; top: -50%; left: -50%; width: 200%; height: 200%;
+        background: radial-gradient(circle at 50% 50%, #ff2a00 0%, #000000 60%);
+        filter: url(#fluid-filter) blur(20px);
+        opacity: 0.5; z-index: -1;
+        animation: rotateBg 40s linear infinite;
+        transform-origin: center center;
+      }
+      .fluid-bg-layer2 {
+        position: fixed; top: -50%; left: -50%; width: 200%; height: 200%;
+        background: radial-gradient(circle at 30% 70%, #ff6200 0%, transparent 50%);
+        filter: url(#fluid-filter) blur(40px);
+        mix-blend-mode: screen; opacity: 0.4; z-index: -1;
+        animation: rotateBg 30s linear infinite reverse;
+      }
+      @keyframes rotateBg {
+        100% { transform: rotate(360deg); }
+      }
+
+      /* Typography Utilities */
+      .hero-text {
+        font-family: 'Syne', sans-serif;
+        font-size: clamp(3rem, 12vw, 15rem);
+        line-height: 0.85;
+        letter-spacing: -0.04em;
+        text-transform: uppercase;
+        font-weight: 800;
+        will-change: transform, opacity;
+      }
+      .subhero-text {
+        font-family: 'Outfit', sans-serif;
+        font-size: clamp(1rem, 2vw, 1.5rem);
+        font-weight: 300;
+        color: rgba(255,255,255,0.7);
+        max-width: 42rem;
+      }
+      
+      /* Split Text spans for GSAP */
+      .line { overflow: hidden; display: block; }
+      .word { display: inline-block; transform: translateY(110%); }
+      
+      /* UI Mockup Container */
+      .ui-mockup-wrapper {
+        perspective: 1200px;
+        will-change: transform;
+      }
+      .ui-mockup {
+        background: rgba(10,10,10,0.4);
+        border: 1px solid rgba(255,255,255,0.05);
+        backdrop-filter: blur(20px);
+        border-radius: 12px;
+        box-shadow: 0 40px 100px -20px rgba(255, 42, 0, 0.3);
+        transform: rotateX(15deg) translateY(50px) scale(0.9);
+        transition: transform 0.1s ease-out;
+      }
+
+      /* Animated Buttons */
+      .btn-magma-primary {
+        position: relative;
+        overflow: hidden;
+        background: #ffffff;
+        color: #000000;
+      }
+      .btn-magma-primary::before {
+        content: ''; position: absolute; top: 100%; left: 0; width: 100%; height: 100%;
+        background: #ff2a00; transition: transform 0.4s cubic-bezier(0.7, 0, 0.3, 1);
+        z-index: 0;
+      }
+      .btn-magma-primary:hover::before { transform: translateY(-100%); }
+      .btn-magma-primary:hover span { color: #ffffff; }
+      .btn-magma-primary span { position: relative; z-index: 1; transition: color 0.4s ease; }
+
+    </style>
 </head>
-<body>
-  <div class="app">
-    <aside class="sidebar">
-      <div class="sidebar_header">
-        <div class="logo_wrap">
-          <img src="logo.svg" alt="" class="logo_img">
-          <h2>Log Sources</h2>
-        </div>
-        <button type="button" class="btn btn_icon" id="add_path_btn" title="Add log source">
-          <span aria-hidden="true">+</span>
-        </button>
-      </div>
-      <ul class="file_list" id="file_list"></ul>
-      <div class="sidebar_footer">
-        <p class="hint">Click a source to view logs</p>
-        <p class="hint">~/.smart-log-viewer/config.json</p>
-      </div>
-    </aside>
+<body class="selection:bg-magma-red selection:text-white">
 
-    <main class="main">
-      <header class="topbar">
-        <div class="filters filters_left">
-          <select id="level_filter" class="filter_select">
-            <option value="">All levels</option>
-            <option value="ERROR">ERROR</option>
-            <option value="WARN">WARN</option>
-            <option value="INFO">INFO</option>
-            <option value="DEBUG">DEBUG</option>
-          </select>
-          <input type="text" id="text_search" class="filter_input" placeholder="Search logs...">
-        </div>
-        <div class="filters_sep"></div>
-        <div class="filters filters_center" id="visible_sources"></div>
-        <div class="filters_sep"></div>
-        <div class="filters filters_right">
-          <label class="toggle_label">
-            <input type="checkbox" id="auto_scroll" checked>
-            <span>Auto-scroll</span>
-          </label>
-          <button type="button" class="btn btn_small" id="pause_btn">Pause</button>
-          <button type="button" class="btn btn_small" id="clear_btn">Clear</button>
-          <button type="button" class="btn btn_small" id="download_btn" title="Download visible logs">Download</button>
-        </div>
-      </header>
+  <!-- Grain Overlay -->
+  <div class="noise"></div>
 
-      <div class="log_container">
-        <div class="empty_state" id="empty_state">
-          <div class="empty_illustration" id="empty_illustration"></div>
-          <p class="empty_state_msg" id="empty_state_msg">Add a log source using the + button.</p>
-        </div>
-        <table class="log_table" id="log_table">
-          <thead>
-            <tr>
-              <th class="col_expand"></th>
-              <th class="col_tag">Source</th>
-              <th class="col_ts">Timestamp</th>
-              <th class="col_level">Level</th>
-              <th class="col_file">File:Line</th>
-              <th class="col_msg">Message</th>
-            </tr>
-          </thead>
-          <tbody id="log_body"></tbody>
-        </table>
-      </div>
-    </main>
-  </div>
+  <!-- SVG Fluid Filter Definitions -->
+  <svg width="0" height="0" class="absolute hidden">
+    <filter id="fluid-filter">
+      <feTurbulence type="fractalNoise" baseFrequency="0.015" numOctaves="3" result="turbulence" />
+      <feDisplacementMap in="SourceGraphic" in2="turbulence" scale="150" xChannelSelector="R" yChannelSelector="G" />
+    </filter>
+  </svg>
 
-  <div class="modal_overlay" id="modal_overlay" hidden>
-    <div class="modal">
-      <div class="modal_header">
-        <h3>Log Entry (JSON)</h3>
-        <div class="modal_actions">
-          <button type="button" class="btn btn_small" id="copy_log_btn">Copy</button>
-          <button type="button" class="btn btn_small btn_secondary" id="close_modal_btn">Close</button>
-        </div>
-      </div>
-      <pre class="modal_content" id="modal_content"></pre>
-    </div>
-  </div>
+  <!-- Magma Backgrounds -->
+  <div class="fluid-bg"></div>
+  <div class="fluid-bg-layer2"></div>
 
-  <div class="add_path_overlay" id="add_path_overlay" hidden>
-    <div class="add_path_modal">
-      <h3>Add Log Source</h3>
-      <label class="form_label">Path</label>
-      <input type="text" id="new_path_input" class="path_input" placeholder="/path/to/your/logfile.log">
-      <label class="form_label">Tag Name</label>
-      <input type="text" id="new_tag_input" class="path_input" placeholder="payments-api (auto from filename)">
-      <label class="form_label">Color</label>
-      <div class="color_row">
-        <input type="color" id="new_color_input" class="color_picker" value="#a371f7">
-        <span class="color_hex" id="color_hex">#a371f7</span>
+  <!-- Navbar -->
+  <nav class="fixed top-0 w-full z-50 py-6 px-6 md:px-12 mix-blend-difference">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <img src="logo.svg" alt="Magma Logo" class="w-8 h-8 opacity-90">
+        <span class="font-syne font-bold text-lg tracking-wider uppercase text-white">Smart Logs</span>
       </div>
-      <div class="add_path_actions">
-        <button type="button" class="btn" id="confirm_add_btn">Add</button>
-        <button type="button" class="btn btn_secondary" id="cancel_add_btn">Cancel</button>
-      </div>
-      <p class="error_msg" id="add_path_error"></p>
-    </div>
-  </div>
-
-  <div class="edit_tag_overlay" id="edit_tag_overlay" hidden>
-    <div class="add_path_modal">
-      <h3>Edit Source</h3>
-      <input type="hidden" id="edit_path_input">
-      <label class="form_label">Tag Name</label>
-      <input type="text" id="edit_tag_input" class="path_input">
-      <label class="form_label">Color</label>
-      <div class="color_row">
-        <input type="color" id="edit_color_input" class="color_picker">
-        <span class="color_hex" id="edit_color_hex"></span>
-      </div>
-      <div class="add_path_actions">
-        <button type="button" class="btn" id="confirm_edit_btn">Save</button>
-        <button type="button" class="btn btn_secondary" id="cancel_edit_btn">Cancel</button>
+      <div class="flex items-center gap-6">
+        <a href="#features" class="hidden sm:block font-outfit text-sm uppercase tracking-widest text-white/50 hover:text-white transition-colors">Vision</a>
+        <a href="app.html" class="btn-magma-primary px-6 py-2.5 rounded-full font-syne font-bold uppercase tracking-widest text-xs flex items-center justify-center gap-2">
+          <span>Enter Dashboard</span>
+        </a>
       </div>
     </div>
-  </div>
+  </nav>
 
-  <div class="tooltip" id="cell_tooltip" role="tooltip"></div>
+  <!-- Hero Section -->
+  <section class="min-h-screen flex items-center justify-center pt-20 relative z-10 px-4">
+    <div class="w-full max-w-[1600px] mx-auto text-center flex flex-col items-center">
+      
+     
 
-  <script src="app.js"></script>
+      <h1 class="hero-text text-center text-transparent bg-clip-text bg-gradient-to-b from-white to-white/60 drop-shadow-[0_0_50px_rgba(255,255,255,0.1)]">
+        <span class="line"><span class="word">Observe.</span></span>
+        <span class="line"><span class="word text-magma-red mix-blend-screen drop-shadow-[0_0_80px_rgba(255,42,0,0.8)]">Diagnose.</span></span>
+      </h1>
+
+      <div class="overflow-hidden mt-8 mb-16">
+        <p class="subhero-text text-center mx-auto opacity-0" id="hero-subtext">
+          Transcend traditional log viewing. Experience a true real-time streaming engine with native SQL parsing and generative AI insights, wrapped in unparalleled aesthetic perfection.
+        </p>
+      </div>
+
+    </div>
+    <div class="absolute bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center gap-3">
+      <div class="w-px h-16 bg-gradient-to-b from-white/30 to-transparent"></div>
+    </div>
+  </section>
+
+  <!-- 3D UI Reveal Section -->
+  <section class="py-32 relative z-10 overflow-hidden" id="ui-section">
+    <div class="max-w-[1200px] w-[95%] mx-auto ui-mockup-wrapper">
+      <div class="ui-mockup overflow-hidden border border-white/10">
+        <!-- Mock Window Chrome -->
+        <div class="h-12 border-b border-white/5 bg-black/40 flex items-center px-6 justify-between">
+          <div class="flex gap-2">
+            <div class="w-3 h-3 rounded-full bg-red-500/50"></div>
+            <div class="w-3 h-3 rounded-full bg-yellow-500/50"></div>
+            <div class="w-3 h-3 rounded-full bg-green-500/50"></div>
+          </div>
+          <div class="font-mono text-[10px] text-white/30 tracking-[0.2em] uppercase">Live Connect</div>
+        </div>
+        <!-- Mock Content -->
+        <div class="p-8 sm:p-12 font-mono text-sm leading-[2] text-white/50 bg-[#050505]/90">
+          <div class="flex gap-6 mb-4">
+            <span class="w-24 text-white/20">2026-10-22</span>
+            <span class="px-2 rounded bg-green-500/10 text-green-500 border border-green-500/20 text-xs flex items-center h-6">INFO</span>
+            <span class="text-white/80">Quantum core engine initialized completely.</span>
+          </div>
+          <div class="flex gap-6 mb-4">
+            <span class="w-24 text-white/20">2026-10-22</span>
+            <span class="px-2 rounded bg-blue-500/10 text-blue-500 border border-blue-500/20 text-xs flex items-center h-6">DEBUG</span>
+            <span class="text-white/50">Synaptic bridge connected. Awaiting data packets.</span>
+          </div>
+          <div class="flex gap-6 mb-4">
+            <span class="w-24 text-white/20">2026-10-22</span>
+            <span class="px-2 rounded bg-magma-orange/10 text-magma-orange border border-magma-orange/20 text-xs flex items-center h-6">SQL</span>
+            <span class="text-white border-l-2 border-magma-orange pl-4 py-1 bg-white/5 italic">SELECT * FROM synaptic_nodes WHERE status='ACTIVE';</span>
+          </div>
+          <div class="flex gap-6 mb-4">
+            <span class="w-24 text-white/20">2026-10-22</span>
+            <span class="px-2 rounded bg-magma-red/10 text-magma-red border border-magma-red/20 text-xs flex items-center h-6">ERROR</span>
+            <span class="text-magma-red font-bold underline decoration-magma-red/40 decoration-[2px] underline-offset-4">Resonance cascade detected in Sector 4G. Terminating.</span>
+          </div>
+          <div class="flex gap-6 mb-4">
+            <span class="w-24 text-white/20">2026-10-22</span>
+            <span class="px-2 rounded bg-violet-500/10 text-violet-400 border border-violet-500/20 text-xs flex items-center h-6">AI</span>
+            <span class="text-white/80 border-l px-4 py-2 border-violet-500 bg-violet-500/5">I suggest checking the core load balancers. The resonance cascade indicates a queue overflow.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Huge Typography Info Sections -->
+  <section class="py-40 px-6 relative z-10" id="features">
+    <div class="max-w-[1400px] mx-auto grid grid-cols-1 lg:grid-cols-2 gap-20">
+      <div class="lg:sticky top-40 h-fit">
+        <h2 class="font-syne text-[6vw] lg:text-[5vw] leading-[0.9] font-bold uppercase track-tighter mb-8">
+          The <br>Absolute <span class="text-transparent bg-clip-text bg-gradient-to-r from-magma-red to-magma-yellow block mt-2 pb-2">Vertex.</span>
+        </h2>
+        <p class="text-xl text-white/40 font-light max-w-md">Everything you ever wanted from a local server tailing tool, elevated to an enterprise-grade experience. Zero configuration, absolute perfection.</p>
+        
+        <div class="mt-12">
+          <a href="app.html" class="inline-flex items-center gap-4 group">
+            <div class="w-14 h-14 rounded-full border border-white/20 flex items-center justify-center group-hover:bg-white transition-colors duration-500">
+               <span class="material-symbols-outlined text-white group-hover:text-black transition-colors duration-500 transform group-hover:rotate-45">arrow_upward</span>
+            </div>
+            <span class="font-syne uppercase tracking-widest text-sm font-bold border-b border-transparent group-hover:border-white transition-colors">Start Streaming</span>
+          </a>
+        </div>
+      </div>
+      
+      <div class="flex flex-col gap-12 feature-cards">
+        <div class="border-t border-white/10 pt-8 feature-card">
+          <span class="font-mono text-magma-orange text-sm mb-4 block">01 / CAPTURE</span>
+          <h3 class="font-syne text-4xl mb-4 uppercase">WebSocket Streams</h3>
+          <p class="text-white/50 text-lg font-light leading-relaxed">Local tailing handled via lightweight Node.js event layers and piped perfectly down an indestructible WebSocket stream. Auto-scroll stays pinned, catching thousands of lines a second.</p>
+        </div>
+        <div class="border-t border-white/10 pt-8 feature-card">
+          <span class="font-mono text-magma-red text-sm mb-4 block">02 / DECODE</span>
+          <h3 class="font-syne text-4xl mb-4 uppercase">Inline Formatting</h3>
+          <p class="text-white/50 text-lg font-light leading-relaxed">SQL syntax, nested JSON arrays, object dumps. Our smart parser catches them instantly and reformats them directly inside the log row. No more clicking out to external formatting tools.</p>
+        </div>
+        <div class="border-t border-white/10 pt-8 feature-card">
+          <span class="font-mono text-violet-400 text-sm mb-4 block">03 / INFER</span>
+          <h3 class="font-syne text-4xl mb-4 uppercase">AI Synthesis</h3>
+          <p class="text-white/50 text-lg font-light leading-relaxed">Hit Cmd+K, launch the AI pane, and the LLM receives the last 50 error-ridden log lines instantly. It diagnoses the problem entirely natively inside your workflow.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Massive Footer -->
+  <footer class="bg-black py-40 relative z-10 border-t border-white/5 overflow-hidden">
+    <!-- Huge background text -->
+    <div class="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.03]">
+      <span class="font-syne text-[20vw] font-black uppercase tracking-tighter whitespace-nowrap">START</span>
+    </div>
+    
+    <div class="max-w-[1400px] mx-auto px-6 text-center relative z-10 flex flex-col items-center">
+      <img src="logo.svg" alt="Magma Logo" class="w-16 h-16 mb-12 opacity-50 hover:opacity-100 transition-opacity">
+      <h2 class="font-syne text-5xl md:text-8xl font-bold uppercase tracking-tighter mb-12">
+        See the Unseen.
+      </h2>
+      <a href="app.html" class="btn-magma-primary px-12 py-5 rounded-full font-syne font-bold uppercase tracking-[0.2em] text-sm">
+        <span>Initialize Engine</span>
+      </a>
+    </div>
+  </footer>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", (event) => {
+      // Initialize Lenis Core Smooth Scroll
+      const lenis = new Lenis({
+        duration: 1.2,
+        easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)), 
+        direction: 'vertical',
+        gestureDirection: 'vertical',
+        smooth: true,
+        mouseMultiplier: 1,
+        smoothTouch: false,
+        touchMultiplier: 2,
+        infinite: false,
+      })
+      lenis.on('scroll', ScrollTrigger.update)
+      gsap.ticker.add((time) => { lenis.raf(time * 1000) })
+      gsap.ticker.lagSmoothing(0)
+
+      // Initial Hero Animation
+      const tl = gsap.timeline();
+      
+      // Animate text sliding up
+      tl.to(".hero-text .word", {
+        y: "0%", duration: 1.5, ease: "power4.out", stagger: 0.15,
+      });
+      tl.to(".hero-tag", { opacity: 1, duration: 1 }, "-=1");
+      tl.to("#hero-subtext", { opacity: 1, y: 0, duration: 1.5, ease: "power3.out" }, "-=1");
+
+      // UI Mockup 3D Scroll Reveal
+      gsap.to(".ui-mockup", {
+        scrollTrigger: {
+          trigger: "#ui-section",
+          start: "top 80%",
+          end: "top 20%",
+          scrub: 1,
+        },
+        rotateX: 0,
+        y: 0,
+        scale: 1,
+        boxShadow: "0 20px 50px -10px rgba(255, 42, 0, 0.4)",
+        ease: "none"
+      });
+
+      // Feature Cards Parallax Scroll
+      gsap.utils.toArray('.feature-card').forEach((card, i) => {
+        gsap.from(card, {
+          scrollTrigger: {
+            trigger: card,
+            start: "top 85%",
+            end: "bottom 80%",
+            scrub: 1
+          },
+          y: 80,
+          opacity: 0.2,
+        });
+      });
+    });
+  </script>
 </body>
 </html>
