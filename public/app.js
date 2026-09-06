@@ -90,7 +90,7 @@
   }
 
   function matchesFilters(entry) {
-    const level = (entry.lv || entry.level || '').toUpperCase();
+    const level = (entry.lv || entry.level || '').toString().toUpperCase();
     const filter_level = $level_filter.value;
     if (filter_level && level !== filter_level) return false;
 
