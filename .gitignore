@@ -11,4 +11,10 @@ test_ui_*.log
 test_ux_*.log
 test_feat_*.log
 *.tgz
+
+# OS files
 .DS_Store
+
+# Editor files
+.vscode/
+.cursor/
