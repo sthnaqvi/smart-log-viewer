@@ -384,7 +384,7 @@ async function runTests() {
     const after_clear = await page.locator('#log_body tr.log_row').count();
     ok(after_clear === 0, 'UI: Clear empties log display');
 
-    const long_msg = 'B'.repeat(120);
+    const long_msg = 'B'.repeat(400);
     const long_log = createTempLog([
       `{"ts":"2026-02-18T10:00:01","lv":"INFO","msg":"${long_msg}","fl":"l.js","ln":1}`,
     ]);
@@ -398,8 +398,9 @@ async function runTests() {
     await page.waitForSelector('#log_body tr.log_row', { timeout: 5000 }).catch(() => null);
     await sleep(500);
 
-    const trunc_cell = page.locator('.col_msg .cell_truncate').filter({ hasText: '...' }).first();
-    if (await trunc_cell.count() > 0) {
+    const trunc_cell = page.locator('.col_msg .cell_truncate[data-full]').first();
+    const is_overflowed = await trunc_cell.evaluate((el) => el.scrollWidth > el.clientWidth).catch(() => false);
+    if (is_overflowed) {
       await trunc_cell.click();
       await sleep(200);
       const full_modal = page.locator('#modal_overlay');

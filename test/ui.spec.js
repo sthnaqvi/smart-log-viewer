@@ -145,9 +145,13 @@ async function runTests() {
     // ---------- Tooltips ----------
     console.log('\n--- Tooltips ---');
     ok(await page.locator('.col_msg .cell_truncate[data-full]').count() >= 1, 'Message cells have data-full');
-    const long_msg_cell = page.locator('.col_msg .cell_truncate').filter({ hasText: '...' }).first();
+    const long_msg_cell = page.locator('.col_msg .cell_truncate').filter({ hasText: 'A'.repeat(40) }).first();
     const has_long_msg = await long_msg_cell.count() > 0;
-    ok(has_long_msg, 'Long messages truncated with ellipsis');
+    const long_text = has_long_msg ? await long_msg_cell.textContent() : '';
+    ok(has_long_msg && long_text.length > 100 && !long_text.endsWith('...'),
+      'Long messages are not JS-capped at 100 chars');
+    ok(has_long_msg && await long_msg_cell.evaluate((el) => el.scrollWidth > el.clientWidth),
+      'Long messages are clipped with CSS ellipsis');
     ok(await page.locator('#cell_tooltip').count() === 1, 'Tooltip element exists');
     ok(await page.locator('#cell_tooltip').evaluate((el) => getComputedStyle(el).position === 'fixed'),
       'Tooltip is position:fixed');
@@ -239,6 +243,23 @@ async function runTests() {
       const w = getComputedStyle(el).width;
       return w === 'auto' || parseInt(w, 10) > 200;
     }), 'Message column takes remaining space');
+
+    const viewport_cell = page.locator('.col_msg .cell_truncate').filter({ hasText: 'A'.repeat(40) }).first();
+    await page.setViewportSize({ width: 1100, height: 800 });
+    await sleep(150);
+    const narrow = await viewport_cell.evaluate((el) => ({
+      col: el.closest('td').clientWidth,
+      ratio: el.clientWidth / el.scrollWidth,
+    }));
+    await page.setViewportSize({ width: 1800, height: 800 });
+    await sleep(150);
+    const wide = await viewport_cell.evaluate((el) => ({
+      col: el.closest('td').clientWidth,
+      ratio: el.clientWidth / el.scrollWidth,
+    }));
+    ok(wide.col > narrow.col, 'Message column grows on a larger screen');
+    ok(wide.ratio > narrow.ratio, 'Larger screens reveal more of the message');
+    await page.setViewportSize({ width: 1280, height: 720 });
 
     // ---------- Sticky header ----------
     console.log('\n--- Sticky header ---');

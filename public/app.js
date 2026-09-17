@@ -2,6 +2,7 @@
   'use strict';
 
   const LOG_WINDOW_CAP = 2000;
+  const CELL_DISPLAY_CAP = 1000;
   const WS_PROTOCOL = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   const WS_URL = `${WS_PROTOCOL}//${window.location.host}`;
 
@@ -132,6 +133,16 @@
     return div.innerHTML;
   }
 
+  function clipForDisplay(text) {
+    const value = String(text);
+    if (value.length <= CELL_DISPLAY_CAP) return value;
+    return value.slice(0, CELL_DISPLAY_CAP);
+  }
+
+  function isCellOverflowing(el) {
+    return el.scrollWidth > el.clientWidth;
+  }
+
   function cellWithTooltip(content, full_content) {
     const truncated = String(content);
     const needs_tooltip = full_content != null && String(full_content).length > 50;
@@ -165,15 +176,14 @@
         const lv = (level || '').toUpperCase();
         const msg_level = lv === 'ERROR' ? 'msg_error' : lv === 'INFO' ? 'msg_info' : lv === 'DEBUG' ? 'msg_debug' : '';
         const msg_sql = isSqlLike(msg) ? 'msg_sql' : '';
-        const msg_display = msg.length > 100 ? msg.slice(0, 97) + '...' : msg;
         return `
           <tr class="${row_class} log_row" data-index="${idx}" data-raw-index="${raw_idx}" style="--row-tint:${escapeHtml(color)}">
             <td class="col_expand"><span class="row_expand_icon" aria-hidden="true">▸</span></td>
             <td class="col_tag"><span class="tag_badge" style="--tag-color:${escapeHtml(color)}">${escapeHtml(tag)}</span></td>
             <td class="col_ts"><span class="cell_truncate" data-full="${escapeHtml(ts)}">${escapeHtml(ts)}</span></td>
             <td class="col_level"><span class="level_badge ${level_class}">${escapeHtml(level || '-')}</span></td>
-            <td class="col_file"><span class="cell_truncate" data-full="${escapeHtml(fl)}">${escapeHtml(fl.length > 60 ? fl.slice(0, 57) + '...' : fl)}</span></td>
-            <td class="col_msg"><span class="cell_truncate msg_cell ${msg_level} ${msg_sql}" data-full="${escapeHtml(msg)}" data-level="${escapeHtml(lv)}">${escapeHtml(msg_display)}</span></td>
+            <td class="col_file"><span class="cell_truncate" data-full="${escapeHtml(fl)}">${escapeHtml(clipForDisplay(fl))}</span></td>
+            <td class="col_msg"><span class="cell_truncate msg_cell ${msg_level} ${msg_sql}" data-full="${escapeHtml(msg)}" data-level="${escapeHtml(lv)}">${escapeHtml(clipForDisplay(msg))}</span></td>
           </tr>
         `;
       })
@@ -195,7 +205,8 @@
       const el = e.target.closest('.cell_truncate[data-full]');
       if (!el) { hideTooltip(); return; }
       const full = el.getAttribute('data-full');
-      if (!full || full === el.textContent) return;
+      if (!full) { hideTooltip(); return; }
+      if (!isCellOverflowing(el) && full === el.textContent) return;
       showTooltip(e, full);
     };
     $log_body.onmouseout = (e) => {
