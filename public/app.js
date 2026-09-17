@@ -68,6 +68,15 @@
     return '';
   }
 
+  function getEntryTimestamp(entry) {
+    return entry.ts ?? entry['@timestamp'] ?? entry.time ?? entry.timestamp ?? '';
+  }
+
+  function getEntryLevel(entry) {
+    const raw = entry.lv ?? entry.level ?? entry['log.level'] ?? entry.log?.level ?? '';
+    return raw === '' || raw == null ? '' : String(raw);
+  }
+
   function formatTs(ts) {
     if (!ts) return '-';
     return String(ts);
@@ -91,7 +100,7 @@
   }
 
   function matchesFilters(entry) {
-    const level = (entry.lv || entry.level || '').toString().toUpperCase();
+    const level = getEntryLevel(entry).toUpperCase();
     const filter_level = $level_filter.value;
     if (filter_level && level !== filter_level) return false;
 
@@ -163,13 +172,13 @@
 
     $log_body.innerHTML = capped
       .map((entry, idx) => {
-        const level = String(entry.lv || entry.level || '').trim();
+        const level = getEntryLevel(entry).trim();
         const level_class = getLevelClass(level);
         const source = getSourceForPath(entry._file_path);
         const tag = entry._source_tag || source.tagName;
         const color = source.color;
         const raw_idx = log_entries.indexOf(entry);
-        const ts = formatTs(entry.ts);
+        const ts = formatTs(getEntryTimestamp(entry));
         const fl = formatFileLine(entry);
         const msg = formatMsg(entry);
         const row_class = idx % 2 === 1 ? 'row_alt' : '';
@@ -246,12 +255,14 @@
     if ($log_body._rowClick) return;
     $log_body._rowClick = true;
     $log_body.addEventListener('click', (e) => {
-      const cell = e.target.closest('.cell_truncate[data-full]');
-      if (cell) {
-        e.stopPropagation();
-        const full = cell.getAttribute('data-full');
-        if (full) showExpandModal(full);
-        return;
+      const msg_cell = e.target.closest('.col_msg .cell_truncate[data-full]');
+      if (msg_cell) {
+        const full = msg_cell.getAttribute('data-full');
+        const is_truncated = isCellOverflowing(msg_cell) || (full != null && full !== msg_cell.textContent);
+        if (is_truncated && full) {
+          showExpandModal(full);
+          return;
+        }
       }
       const row = e.target.closest('tr.log_row');
       if (!row) return;
@@ -304,7 +315,7 @@
           log_entries = log_entries
             .filter((e) => e._file_path !== msg.file_path)
             .concat(new_entries)
-            .sort((a, b) => String(a.ts || '').localeCompare(String(b.ts || '')));
+            .sort((a, b) => String(getEntryTimestamp(a)).localeCompare(String(getEntryTimestamp(b))));
           if (log_entries.length > LOG_WINDOW_CAP) {
             log_entries = log_entries.slice(-LOG_WINDOW_CAP);
           }
