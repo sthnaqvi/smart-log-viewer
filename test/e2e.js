@@ -224,6 +224,24 @@ async function runTests() {
 
     ws.close();
 
+    const ecs_path = createTempLog();
+    fs.appendFileSync(
+      ecs_path,
+      '{"log.level":"error","@timestamp":"2024-06-23T18:32:59.626Z","message":"ECS buffer line"}\n',
+      'utf-8',
+    );
+    const ecs_add = await httpPost(`${BASE_URL}/api/config/add`, { path: ecs_path });
+    ok(ecs_add.status === 200, 'ECS: Add path returns 200');
+    await sleep(300);
+    const { ws: ecs_ws, received: ecs_received } = await wsConnectAndSelect(ecs_path);
+    const ecs_buffer = ecs_received.find((m) => m.type === 'buffer');
+    const ecs_entry = ecs_buffer?.entries?.find((e) => e.message === 'ECS buffer line');
+    ok(!!ecs_entry, 'ECS: Buffer contains ECS entry');
+    ok(ecs_entry?.['@timestamp'] === '2024-06-23T18:32:59.626Z', 'ECS: @timestamp preserved');
+    ok(ecs_entry?.['log.level'] === 'error', 'ECS: log.level preserved');
+    ecs_ws.close();
+    await httpPost(`${BASE_URL}/api/config/remove`, { path: ecs_path });
+
     const remove_res = await httpPost(`${BASE_URL}/api/config/remove`, { path: log_path });
     ok(remove_res.status === 200, 'POST /api/config/remove returns 200');
     ok(!remove_res.body.sources?.some((s) => s.path === log_path), 'Path removed from config');

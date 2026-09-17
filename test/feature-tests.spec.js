@@ -415,11 +415,13 @@ async function runTests() {
     await page.locator('#close_modal_btn').click().catch(() => null);
     await page.locator('#modal_overlay[hidden]').waitFor({ timeout: 2000 }).catch(() => null);
 
-    await page.locator('#log_body tr.log_row').first().click();
+    await page.locator('#log_body tr.log_row .level_badge').first().click();
     await sleep(200);
     const json_modal = page.locator('#modal_overlay');
     const json_visible = !(await json_modal.getAttribute('hidden'));
-    ok(json_visible, 'UI: Click row opens JSON modal');
+    const json_title = await json_modal.locator('h3').textContent();
+    ok(json_visible, 'UI: Click level badge opens JSON modal');
+    ok(json_title?.includes('Log Entry (JSON)'), 'UI: Modal shows Log Entry (JSON) title');
 
     const copy_btn = page.locator('#copy_log_btn');
     ok(await copy_btn.count() === 1, 'UI: Copy button exists');
@@ -447,6 +449,31 @@ async function runTests() {
       ok(true, 'UI: Download button clickable (download event may not fire in headless)');
     }
 
+    const ecs_log = createTempLog([
+      '{"log.level":"error","@timestamp":"2024-06-23T18:32:59.626Z","message":"ECS error line","ecs.version":"8.10.0"}',
+      '{"log.level":"info","@timestamp":"2024-06-23T18:33:00.000Z","message":"ECS info line","ecs.version":"8.10.0"}',
+    ]);
+    await httpPost(`${base_url}/api/config/add`, { path: ecs_log, tagName: 'ecs-test' });
+    await page.reload();
+    await sleep(2000);
+    await page.locator('.file_item').filter({ hasText: 'ecs-test' }).first().click({ timeout: 5000 });
+    await page.waitForSelector('#log_body tr.log_row', { timeout: 5000 }).catch(() => null);
+    await sleep(500);
+
+    const ecs_ts = await page.locator('#log_body tr.log_row .col_ts').first().textContent();
+    const ecs_level = await page.locator('#log_body tr.log_row .col_level .level_badge').first().textContent();
+    const ecs_msg = await page.locator('#log_body tr.log_row .col_msg').filter({ hasText: 'ECS error line' }).count();
+    ok(ecs_ts?.includes('2024-06-23T18:32:59.626Z'), 'UI: ECS @timestamp displayed');
+    ok(ecs_level?.toLowerCase() === 'error', 'UI: ECS log.level displayed');
+    ok(ecs_msg >= 1, 'UI: ECS message displayed');
+
+    await page.locator('#level_filter').selectOption('ERROR');
+    await sleep(300);
+    const ecs_error_rows = await page.locator('#log_body tr.log_row').count();
+    ok(ecs_error_rows === 1, `UI: ECS level filter ERROR matches log.level (${ecs_error_rows})`);
+    await page.locator('#level_filter').selectOption('');
+    await sleep(200);
+
     const warn_badge = page.locator('.level_badge.level_warn');
     ok(await warn_badge.count() >= 0, 'UI: WARN level badge (if WARN in logs)');
 
@@ -455,6 +482,7 @@ async function runTests() {
 
     await httpPost(`${base_url}/api/config/remove`, { path: ui_log });
     await httpPost(`${base_url}/api/config/remove`, { path: long_log });
+    await httpPost(`${base_url}/api/config/remove`, { path: ecs_log });
     await httpPost(`${base_url}/api/config/remove`, { path: persist_log });
     await page.goto(base_url);
     await sleep(500);

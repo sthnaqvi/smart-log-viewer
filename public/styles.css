@@ -457,10 +457,6 @@ body {
   cursor: default;
 }
 
-.cell_truncate[data-full]:hover {
-  cursor: pointer;
-}
-
 .msg_cell.msg_info {
   font-weight: 450;
 }
